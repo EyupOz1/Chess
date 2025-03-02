@@ -8,3 +8,4 @@ A Basic Chess Copy in the terminal
 
 1. Clone this repo
 2. Open the .sln ( using visual studio )
+3. test
