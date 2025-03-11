@@ -7,6 +7,16 @@ Cam::Cam(Camera2D camera)
     this->camera = camera;
 }
 
+
+void Cam::update(bool isMouseOnBoard)
+{
+    this->Zoom();
+	if (!isMouseOnBoard)
+	{
+		this->Move();
+	}
+}
+
 void Cam::Move()
 {
 

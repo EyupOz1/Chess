@@ -5,15 +5,25 @@
 #include "Utils.hpp"
 #include <iostream>
 #include <string>
+Board::Board() {}
 
-Board::Board(std::string fen)
+void Board::setup(std::string fen, Texture2D tex)
 {
-    this->cellSize = CELL_SIZE;
     for (int i = 0; i < 64; i++)
     {
         this->state[i] = 0;
+
+        // Setting up board cells for collision checks
+        int x = i % 8, y = i / 8;
+        Rectangle rec = {
+            static_cast<float>(x * CELL_SIZE),
+            static_cast<float>(y * CELL_SIZE),
+            static_cast<float>(CELL_SIZE),
+            static_cast<float>(CELL_SIZE)};
+        this->boardCells[i] = rec;
     }
 
+    // FEN
     int boardIndex = 0;
     for (int i = 0; i < fen.size(); i++)
     {
@@ -41,33 +51,67 @@ Board::Board(std::string fen)
             boardIndex += (curr - 48);
         }
     }
+
+    // Tex
+    this->tex = tex;
 }
 
-void Board::DrawBoard()
+MoveStatus Board::move(int src, int dest)
 {
-    for (int i = 0; i < 8; i++)
+
+    uint8_t piece = getPieceInWhite(this->state[src]);
+
+    if (this->state[src])
     {
-        for (int j = 0; j < 8; j++)
-        {
-            Rectangle rec = {i * this->cellSize, j * this->cellSize, this->cellSize, this->cellSize};
-            Color col = (i + j) % 2 == 0 ? RAYWHITE : BROWN;
-            DrawRectangleRec(rec, col);
-        }
+        /* code */
+    }
+    
+
+
+    uint8_t temp = this->state[src];
+    this->state[src] = 0;
+
+    this->state[dest] = temp;
+
+    return Success;
+}
+
+void Board::drawBoard()
+{
+    for (int i = 0; i < 64; i++)
+    {
+        int x = i % 8, y = i / 8;
+
+        DrawRectangleRec(this->boardCells[i], (x + y) % 2 == 0 ? RAYWHITE : BROWN);
     }
 }
 
-void Board::DrawPieces(Texture2D &tex)
+void Board::drawPieces()
 {
     for (int i = 0; i < 64; i++)
     {
         if (state[i] == 0)
             continue;
 
-        Vector2 currCell = {i % 8, i / 8};
+        Vector2 currCell = {static_cast<float>(i % 8), static_cast<float>(i / 8)};
         Vector2 currCellWorldPos = Vector2Scale(currCell, CELL_SIZE);
 
         Rectangle src = getPieceTexCoords(this->state[i]);
         Rectangle dest = {currCellWorldPos.x, currCellWorldPos.y, CELL_SIZE, CELL_SIZE};
-        DrawTexturePro(tex, src, dest, {0}, 0, WHITE);
+        DrawTexturePro(this->tex, src, dest, {0}, 0, WHITE);
     }
+}
+
+Vector2 Board::pointToCellPos(Vector2 pos)
+{
+    for (int i = 0; i < 64; i++)
+    {
+        Rectangle currRect = this->boardCells[i];
+        if (CheckCollisionPointRec(pos, currRect))
+        {
+            return {currRect.x, currRect.y};
+        }
+    }
+
+    return {-1};
 }

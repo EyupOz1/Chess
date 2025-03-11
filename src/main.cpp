@@ -1,49 +1,87 @@
 #include "raylib.h"
 #include "rlgl.h"
 #include "raymath.h"
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+#include "Defines.hpp"
+
+#include "Utils.hpp"
+
+#include "Player.hpp"
 #include "Camera.hpp"
 #include "Board.hpp"
-#include "Defines.hpp"
+#include "MouseInfo.hpp"
+#include "CommandBox.hpp"
+
+Player players[] = {Player(), Player()};
+Cam cam = Cam((Camera2D){.zoom = 1.0f});
+Board board = Board();
+MouseInfo mouseInfo;
+
+// UI
+CommandBox commandBox;
+
+void setup()
+{
+	board.setup("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", LoadTexture("resources/pieces_tex.png"));
+	mouseInfo.update(cam);
+}
+
+void update()
+{
+	mouseInfo.update(cam);
+	cam.update(mouseInfo.isMouseOnBoard);
+
+	board.drawBoard();
+	board.drawPieces();
+
+	if (mouseInfo.isMouseOnBoard)
+	{
+		Vector2 mouseCellCollisionInWorld = board.pointToCellPos(mouseInfo.mouseWorldPos);
+		Vector2 cellPos = {mouseCellCollisionInWorld.x / CELL_SIZE, mouseCellCollisionInWorld.y / CELL_SIZE};
+		if (mouseCellCollisionInWorld.x >= 0)
+		{
+			DrawRectangle(mouseCellCollisionInWorld.x, mouseCellCollisionInWorld.y, CELL_SIZE, CELL_SIZE, {0, 121, 241, 125});
+		}
+	}
+}
+
+void ui()
+{
+	if (IsKeyPressed(KEY_TAB))
+	{
+		commandBox.isVisible = !commandBox.isVisible;
+	}
+
+	commandBox.update(board);
+
+	DrawCircleV(mouseInfo.mouseWindowPos, 4, DARKGRAY);
+	DrawTextEx(GetFontDefault(), TextFormat("[%i, %i]", mouseInfo.mouseWindowPos.x, mouseInfo.mouseWindowPos.y),
+			   Vector2Add(mouseInfo.mouseWindowPos, (Vector2){-44, -24}), 20, 2, DARKGRAY);
+
+	DrawTextEx(GetFontDefault(), TextFormat("[%f, %f]", mouseInfo.mouseWorldPos.x, mouseInfo.mouseWorldPos.y), Vector2Add(mouseInfo.mouseWindowPos, (Vector2){-44, -44}), 20, 2, BLACK);
+}
 
 int main()
 {
-	const int screenWidth = 1920 / 2;
-	const int screenHeight = 1080 / 2;
-	
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	InitWindow(screenWidth, screenHeight, "");
-	
-	Texture2D tex = LoadTexture("resources/pieces_tex.png");
-	Cam cam = Cam((Camera2D){.zoom = 1.0f});
-	Board board = Board("r1bk3r/p2pBpNp/n4n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1");
-
-
+	InitWindow(screenWidth, screenHeight, "Chess");
 	SetTargetFPS(60);
+	SetTraceLogLevel(LOG_ALL);
+
+	setup();
 
 	while (!WindowShouldClose())
 	{
 
 		BeginDrawing();
-		{
-			ClearBackground(GRAY);
+		ClearBackground(GRAY);
 
-			cam.Move();
-			cam.Zoom(0);
+		BeginMode2D(cam.camera);
+		update();
+		EndMode2D();
+		ui();
 
-			BeginMode2D(cam.camera);
-
-			board.DrawBoard();
-			board.DrawPieces(tex);
-
-			EndMode2D();
-
-			DrawCircleV(GetMousePosition(), 4, DARKGRAY);
-			DrawTextEx(GetFontDefault(), TextFormat("[%i, %i]", GetMouseX(), GetMouseY()),
-					   Vector2Add(GetMousePosition(), (Vector2){-44, -24}), 20, 2, DARKGRAY);
-
-			Vector2 mouseWorldPos = GetScreenToWorld2D(GetMousePosition(), cam.camera);
-			DrawTextEx(GetFontDefault(), TextFormat("[%f, %f]", mouseWorldPos.x, mouseWorldPos.y), Vector2Add(GetMousePosition(), (Vector2){-44, -44}), 20, 2, BLACK);
-		}
 		EndDrawing();
 	}
 

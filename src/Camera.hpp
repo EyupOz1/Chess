@@ -1,3 +1,5 @@
+#pragma once
+
 #include "raylib.h"
 
 class Cam
@@ -10,4 +12,6 @@ public:
 
     void Move();
     void Zoom();
+
+    void update(bool isMouseOnBoard);
 };

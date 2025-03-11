@@ -4,7 +4,7 @@
 
 Rectangle getPieceTexCoords(uint8_t piece)
 {
-    uint8_t isBlack = (piece & 128) >> 7;
+    bool isBlack = (piece & 128) >> 7;
     uint8_t noColorPiece = piece & 0b01111111;
 
     Rectangle res = {0, 0, TEXTURE_PIECE_SIZE, TEXTURE_PIECE_SIZE};
@@ -29,6 +29,9 @@ Rectangle getPieceTexCoords(uint8_t piece)
     case Pawn:
         res.x = 5 * TEXTURE_PIECE_SIZE;
         break;
+    default:
+        return {-1};
+        break;
     }
 
     return res;
@@ -39,7 +42,7 @@ uint8_t fenToPiece(char fenChar)
     bool isWhite = 'A' <= fenChar && fenChar <= 'Z';
     char pieceInWhite = isWhite ? fenChar : fenChar - 32;
 
-    uint8_t res = 0;
+    uint8_t res = None;
     switch (pieceInWhite)
     {
     case 'K':
@@ -68,4 +71,18 @@ uint8_t fenToPiece(char fenChar)
     }
 
     return res;
+}
+
+bool pieceIsWhite(uint8_t piece)
+{
+    return !((piece & 128) >> 7);
+}
+
+uint8_t getPieceInWhite(uint16_t piece)
+{
+    if (!pieceIsWhite(piece))
+    {
+        piece &= 0b01111111;
+    }
+    return piece;
 }
