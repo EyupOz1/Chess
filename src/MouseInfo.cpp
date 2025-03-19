@@ -7,7 +7,7 @@ MouseInfo::MouseInfo()
 
 void MouseInfo::update(Cam cam)
 {
-    this->mouseWindowPos = GetMousePosition();
-    this->mouseWorldPos = GetScreenToWorld2D(this->mouseWindowPos, cam.camera);
-    this->isMouseOnBoard = CheckCollisionPointRec(this->mouseWorldPos, {0, 0, CELL_SIZE * 8, CELL_SIZE * 8});
+    this->screenPos = GetMousePosition();
+    this->worldPos = GetScreenToWorld2D(this->screenPos, cam.camera);
+    this->isOnBoard = CheckCollisionPointRec(this->worldPos, {0, 0, CELL_SIZE * 8, CELL_SIZE * 8});
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "raylib.h"
-#include "Board.hpp"
+#include "Board/Board.hpp"
 
 class CommandBox
 {

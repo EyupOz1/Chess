@@ -5,28 +5,27 @@
 #define CELL_SIZE 60
 #define TEXTURE_PIECE_SIZE 60
 
-#define screenWidth 920
-#define screenHeight 540
+#define WINDOW_WIDTH 920
+#define WINDOW_HEIGHT 540
+
+#define FEN_START "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+#define TEST_FEN "r1bk3r/p2pBpNp/n4n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1"
 
 enum Piece : uint8_t
 {
-    None,
-    Pawn,
-    Bishop,
-    Knight,
-    Rook,
-    Queen,
-    King
+    NONE,
+    PAWN,
+    BISHOP,
+    KNIGHT,
+    ROOK,
+    QUEEN,
+    KING
 };
-
-
 
 enum MoveStatus
 {
-
-    Success,
-    OutOfBounds
-
+    SUCCESS,
+    OUTOFBOUNDS
 };
 /*
 First Bit -> Color
