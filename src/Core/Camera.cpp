@@ -2,11 +2,11 @@
 #include "raylib.h"
 #include "raymath.h"
 
-Cam::Cam(Camera2D camera)
-{
-    this->camera = camera;
-}
 
+Cam::Cam(float zoom)
+{
+    this->camera.zoom = zoom;
+}
 
 void Cam::update(bool isMouseOnBoard)
 {

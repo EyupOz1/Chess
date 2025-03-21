@@ -1,5 +1,5 @@
-#include "MouseInfo.hpp"
-#include "Defines.hpp"
+#include "Core/MouseInfo.hpp"
+#include "Core/SETTING.hpp"
 
 MouseInfo::MouseInfo()
 {

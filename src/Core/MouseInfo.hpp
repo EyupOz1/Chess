@@ -1,5 +1,5 @@
 #include "raylib.h"
-#include "Camera.hpp"
+#include "Core/Camera.hpp"
 
 /// @brief Needs to be updatet every frame. 
 class MouseInfo

@@ -8,8 +8,7 @@ public:
     Camera2D camera;
     char zoomMode = 0;
 
-    Cam(Camera2D camera);
-
+    Cam(float zoom);
     void Move();
     void Zoom();
 
