@@ -5,7 +5,6 @@
 #include "raymath.h"
 #include <array>
 
-
 void BoardRenderer::setup(Texture2D pieceTexture, Color cellLight, Color cellDark)
 {
     this->pieceTexture = pieceTexture;
@@ -31,11 +30,10 @@ void BoardRenderer::drawBoard()
     {
         Vector2 cellCoord = indexToCoords(i);
         DrawRectangleRec(
-            this->cellDimensions[i], 
+            this->cellDimensions[i],
             static_cast<int>(cellCoord.x + cellCoord.y) % 2 == 0 ? RAYWHITE : BROWN);
     }
 }
-
 
 void BoardRenderer::drawPieces(std::array<uint8_t, 64> pieces)
 {
@@ -51,4 +49,38 @@ void BoardRenderer::drawPieces(std::array<uint8_t, 64> pieces)
         Rectangle dest = {cellPosW.x, cellPosW.y, CELL_SIZE, CELL_SIZE};
         DrawTexturePro(this->pieceTexture, src, dest, {0}, 0, WHITE);
     }
+}
+
+void BoardRenderer::highlightCell(int cellIndex)
+{
+    if (!isBetween(cellIndex, 0, 63))
+        return;
+
+    Vector2 pos = indexToCoords(cellIndex);
+    DrawRectangle(pos.x * CELL_SIZE, pos.y * CELL_SIZE, CELL_SIZE, CELL_SIZE, {0, 121, 241, 125});
+}
+
+void BoardRenderer::highlightCell(Vector2 targetWorldPos)
+{
+    Vector2 targetCellPos = this->getCellAtPosition(targetWorldPos);
+    if (targetCellPos.x == -1)
+    {
+        return;
+    }
+
+    DrawRectangle(targetCellPos.x, targetCellPos.y, CELL_SIZE, CELL_SIZE, {0, 121, 241, 125});
+}
+
+Vector2 BoardRenderer::getCellAtPosition(Vector2 pos)
+{
+    for (int i = 0; i < 64; i++)
+    {
+        Rectangle currRect = this->cellDimensions[i];
+        if (CheckCollisionPointRec(pos, currRect))
+        {
+            return {currRect.x, currRect.y};
+        }
+    }
+
+    return {-1};
 }

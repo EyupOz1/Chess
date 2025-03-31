@@ -8,7 +8,6 @@
 class BoardState
 {
     std::array<uint8_t, 64> board;
-    bool isBlackTurn = false;
 
     void FEN(std::string fen);
 

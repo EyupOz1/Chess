@@ -10,14 +10,10 @@ void BoardState::setup(std::string fenString)
 
 void BoardState::movePiece(int startIndex, int targetIndex)
 {
-    uint8_t temp = this->board[startIndex]; 
+    uint8_t temp = this->board[startIndex];
     this->board[startIndex] = NONE;
-    this->board[targetIndex] = temp; 
+    this->board[targetIndex] = temp;
 }
-
-
-
-
 
 void BoardState::FEN(std::string fen)
 {
@@ -56,10 +52,7 @@ void BoardState::FEN(std::string fen)
     {
         TraceLog(2, "%c", fen[fenIndex + 1]);
     }
-    
 }
-
-
 
 std::array<uint8_t, 64> BoardState::getBoard()
 {
