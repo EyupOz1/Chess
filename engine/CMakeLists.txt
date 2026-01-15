@@ -1,6 +1,8 @@
-add_library(chess_engine STATIC
-  src/engine.cpp
-)
+file(GLOB_RECURSE ENGINE_SRC CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+
+add_library(chess_engine STATIC ${ENGINE_SRC})
+
 
 target_include_directories(chess_engine
   PUBLIC

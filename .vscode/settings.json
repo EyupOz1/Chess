@@ -1,5 +1,10 @@
 {
   "cmake.generator": "Ninja",
   "cmake.buildDirectory": "${workspaceFolder}/build",
-  "cmake.configureOnOpen": true
+  "cmake.configureOnOpen": true,
+  "cmake.parallelJobs": 0,
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "C_Cpp.default.cppStandard": "c++23",
+  "C_Cpp.default.intelliSenseMode": "windows-gcc-x64",
+  "C_Cpp.default.compilerPath": "g++"
 }
