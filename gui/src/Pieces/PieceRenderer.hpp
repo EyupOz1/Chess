@@ -6,4 +6,9 @@
 #include "DragDrop/DragDrop.hpp"
 #include "chess/Board.hpp"
 
-void DrawPieces(const Board &board, const BoardView &view, const DragDropSystem::DragView &drag);
+namespace GUI
+{
+
+    void DrawPieces(const Engine::Board &board, const GUI::Board &boardView, const DragDrop::DragDropView &dragView);
+
+}

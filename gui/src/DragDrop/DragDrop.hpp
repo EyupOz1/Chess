@@ -5,41 +5,51 @@
 #include "Board/Board.hpp"
 #include "chess/Board.hpp"
 
-#include <vector>
-#include <utility>
-
-class DragDropSystem
+namespace GUI
 {
-public:
-    struct DragView
+
+    struct DragDrop
     {
-        bool active;
-        int source_index;
-        int target_index;
-        char piece;
-        Vector2 world_pos;
-        Vector2 grab_offset;
+    public:
+        struct DragDropView
+        {
+            bool isDragging;
+            bool hasSelection;
+            int selectedIndex;
+            int targetIndex;
+            char selectedPiece;
+            Vector2 worldPos;
+            Vector2 grabOffset;
+        };
+
+        DragDrop();
+        void Update(Engine::Board &board, const GUI::Board &boardView, const Camera2D &camera);
+        DragDropView GetView() const;
+        int GetSelectedIndex() const;
+        char GetSelectedPiece() const;
+        bool HasSelection() const;
+
+    private:
+        struct State
+        {
+            bool isDragging;
+            bool isMouseDown;
+            bool hasSelection;
+            int selectedIndex;
+            int targetIndex;
+            char selectedPiece;
+            Vector2 grabOffset;
+            Vector2 lastMouseWorld;
+            Vector2 pressMouseWorld;
+        };
+
+        static void ClearSelection(State &state);
+        static void SelectPiece(State &state, int index, char piece);
+        static bool TryMove(Engine::Board &board, int sourceIndex, int targetIndex);
+        static bool WorldToIndex(Vector2 world, const GUI::Board &boardView, int &outIndex);
+        static Vector2 IndexToWorldCenter(int index, const GUI::Board &boardView);
+
+        State dragDrop_;
     };
 
-    
-    DragDropSystem();
-    void Update(Board &board, const BoardView &view, const Camera2D &camera);
-    DragView GetDragView() const;
-
-
-private:
-    struct DragState
-    {
-        bool active;
-        int source_index;
-        int target_index;
-        char piece;
-        Vector2 grab_offset;
-        Vector2 last_mouse_world;
-    };
-
-    static bool WorldToIndex(Vector2 world, const BoardView &view, int &out_index);
-    static Vector2 IndexToWorldCenter(int index, const BoardView &view);
-
-    DragState drag_;
-};
+}

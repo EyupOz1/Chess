@@ -1,32 +1,55 @@
 #include "Board.hpp"
+#include "chess/Utils.hpp"
 
-BoardView CreateBoardView(float tile_size, Vector2 center, bool flipped)
+GUI::Board::Board(float tile_size, Vector2 center, bool flipped)
 {
-    BoardView view = {};
-    view.board_size = 8;
-    view.tile_size = tile_size;
-    view.flipped = flipped;
-    float half = (view.board_size * view.tile_size) * 0.5f;
-    view.origin = {center.x - half, center.y - half};
-    return view;
+
+    this->boardSize = 8;
+    this->tileSize = tile_size;
+    this->flipped = flipped;
+    float half = (this->boardSize * this->tileSize) * 0.5f;
+    this->origin = {center.x - half, center.y - half};
 }
 
-void DrawChessBoard(const BoardView &view)
+
+void GUI::Board::DrawBoard()
 {
     const Color light = {235, 236, 208, 255};
     const Color dark = {119, 149, 86, 255};
     bool is_light = true;
 
-    for (int rank = 0; rank < view.board_size; ++rank)
+    for (int rank = 0; rank < this->boardSize; ++rank)
     {
-        for (int file = 0; file < view.board_size; ++file)
+        for (int file = 0; file < this->boardSize; ++file)
         {
+
             Color current = is_light ? light : dark;
             is_light = !is_light;
-            float x = view.origin.x + file * view.tile_size;
-            float y = view.origin.y + rank * view.tile_size;
-            DrawRectangle((int)x, (int)y, (int)view.tile_size, (int)view.tile_size, current);
+
+            float x = this->origin.x + file * this->tileSize;
+            float y = this->origin.y + rank * this->tileSize;
+
+            DrawRectangle((int)x, (int)y, (int)this->tileSize, (int)this->tileSize, current);
         }
         is_light = !is_light;
+    }
+}
+
+void GUI::Board::HighlightCells(const std::vector<Engine::Move> &moves)
+{
+    
+    for (size_t i = 0; i < moves.size(); i++)
+    {
+        int targetIndex = moves[i].end;
+        Engine::Vec2 coords = Engine::indexToVec2(targetIndex);
+        if (this->flipped)
+        {
+            coords.x = (this->boardSize - 1) - coords.x;
+            coords.y = (this->boardSize - 1) - coords.y;
+        }
+        int screenRank = (this->boardSize - 1) - coords.y;
+        float x = this->origin.x + coords.x * this->tileSize;
+        float y = this->origin.y + screenRank * this->tileSize;
+        DrawRectangle(x, y, (int)this->tileSize, (int)this->tileSize, GREEN);
     }
 }

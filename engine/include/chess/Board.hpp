@@ -6,31 +6,29 @@
 
 #include "Utils.hpp"
 
+namespace Engine
+{
 
-struct Board {
-    std::array<char, 64> state{};
-    bool isWhiteTurn = true;
-    std::array<bool, 4> castlingRights{};
-    std::string enPassantTarget = "";
+    struct Board
+    {
+        std::array<char, 64> state{};
+        bool isWhiteTurn = true;
+        std::array<bool, 4> castlingRights{};
 
-    std::vector<Move> history;
+        std::vector<Move> history;
 
-    int halfMoves = 0;
-    int fullMoves = 1;
+        int halfMoves = 0;
+        int fullMoves = 1;
 
-    int move();
-    int forceMove(int sourceIndex, int targetIndex);
+        int Move(int sourceIndex, int targetIndex);
 
-    int loadFen(std::string FEN);
-    std::string exportFen();
+        int LoadFen(std::string FEN);
+        std::string ExportFen();
 
-    
+        void PrintBoard();
+        void PrintInfo();
 
-    void printBoard();
-    void printInfo();
+        void PossibleMoves();
+    };
 
-    void possibleMoves();
-
-};
-
-
+}

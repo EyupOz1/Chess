@@ -2,14 +2,23 @@
 #pragma once
 
 #include "raylib.h"
+#include "chess/Utils.hpp"
+#include <vector>
 
-struct BoardView
+namespace GUI
 {
-    Vector2 origin;
-    float tile_size;
-    int board_size;
-    bool flipped;
-};
 
-BoardView CreateBoardView(float tile_size, Vector2 center, bool flipped);
-void DrawChessBoard(const BoardView &view);
+    struct Board
+    {
+        Vector2 origin;
+        float tileSize;
+        int boardSize;
+        bool flipped;
+
+        Board(float tileSize, Vector2 center, bool flipped);
+
+        void DrawBoard();
+        void HighlightCells(const std::vector<Engine::Move> &moves);
+    };
+
+}

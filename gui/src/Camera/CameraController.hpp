@@ -2,11 +2,17 @@
 
 #include "raylib.h"
 
-struct CameraController
+namespace GUI
 {
-    Camera2D camera;
-    bool is_dragging;
-};
 
-CameraController CreateCameraController(int screen_width, int screen_height);
-void UpdateCameraController(CameraController &controller);
+    struct CameraController
+    {
+        Camera2D camera;
+        bool is_dragging;
+
+        CameraController(int screen_width, int screen_height);
+        void Update();
+    };
+
+
+}

@@ -3,123 +3,208 @@
 
 #include "raymath.h"
 
-#include <cctype>
 #include <cmath>
 
-
-
-DragDropSystem::DragDropSystem()
+namespace GUI
 {
-    drag_ = {};
-}
 
-bool DragDropSystem::WorldToIndex(Vector2 world, const BoardView &view, int &out_index)
-{
-    float fx = (world.x - view.origin.x) / view.tile_size;
-    float fy = (world.y - view.origin.y) / view.tile_size;
-    int file = static_cast<int>(floorf(fx));
-    int rank = static_cast<int>(floorf(fy));
-    if (!IsOnBoard(file, rank, view.board_size))
+    DragDrop::DragDrop()
     {
-        return false;
+        this->dragDrop_ = {};
+        this->dragDrop_.selectedIndex = -1;
+        this->dragDrop_.targetIndex = -1;
     }
-    if (view.flipped)
+
+    void DragDrop::ClearSelection(State &state)
     {
-        file = (view.board_size - 1) - file;
-        rank = (view.board_size - 1) - rank;
+        state.hasSelection = false;
+        state.selectedIndex = -1;
+        state.targetIndex = -1;
+        state.selectedPiece = 0;
     }
-    out_index = IndexFromFileRank(file, rank, view.board_size);
-    return true;
-}
 
-Vector2 DragDropSystem::IndexToWorldCenter(int index, const BoardView &view)
-{
-    int file = FileFromIndex(index, view.board_size);
-    int rank = RankFromIndex(index, view.board_size);
-    if (view.flipped)
+    void DragDrop::SelectPiece(State &state, int index, char piece)
     {
-        file = (view.board_size - 1) - file;
-        rank = (view.board_size - 1) - rank;
+        state.hasSelection = true;
+        state.selectedIndex = index;
+        state.targetIndex = index;
+        state.selectedPiece = piece;
     }
-    float x = view.origin.x + file * view.tile_size + view.tile_size * 0.5f;
-    float y = view.origin.y + rank * view.tile_size + view.tile_size * 0.5f;
-    return {x, y};
-}
 
-
-
-void DragDropSystem::Update(Board &board, const BoardView &view, const Camera2D &camera)
-{
-    Vector2 mouse_world = GetScreenToWorld2D(GetMousePosition(), camera);
-    drag_.last_mouse_world = mouse_world;
-
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    bool DragDrop::TryMove(Engine::Board &board, int sourceIndex, int targetIndex)
     {
-        int index = -1;
-        if (WorldToIndex(mouse_world, view, index))
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex == targetIndex)
         {
-            char piece = board.state[index];
-            if (IsFriendlyPiece(board.isWhiteTurn, piece))
+            return false;
+        }
+
+        char targetPiece = board.state[targetIndex];
+        if (targetPiece != 0 && !Engine::isOpponentPiece(board.isWhiteTurn, targetPiece))
+        {
+            return false;
+        }
+
+        return board.Move(sourceIndex, targetIndex) == 0;
+    }
+
+    bool DragDrop::WorldToIndex(Vector2 world, const GUI::Board &boardView, int &outIndex)
+    {
+        float fx = (world.x - boardView.origin.x) / boardView.tileSize;
+        float fy = (world.y - boardView.origin.y) / boardView.tileSize;
+        int file = static_cast<int>(floorf(fx));
+        int screenRank = static_cast<int>(floorf(fy));
+        if (!Engine::isOnBoard(file, screenRank, boardView.boardSize))
+        {
+            return false;
+        }
+        int rank = (boardView.boardSize - 1) - screenRank;
+        if (boardView.flipped)
+        {
+            file = (boardView.boardSize - 1) - file;
+            rank = (boardView.boardSize - 1) - rank;
+        }
+        outIndex = Engine::indexFromFileRank(file, rank, boardView.boardSize);
+        return true;
+    }
+
+    Vector2 DragDrop::IndexToWorldCenter(int index, const GUI::Board &boardView)
+    {
+        int file = Engine::fileFromIndex(index, boardView.boardSize);
+        int rank = Engine::rankFromIndex(index, boardView.boardSize);
+        if (boardView.flipped)
+        {
+            file = (boardView.boardSize - 1) - file;
+            rank = (boardView.boardSize - 1) - rank;
+        }
+        int screenRank = (boardView.boardSize - 1) - rank;
+        float x = boardView.origin.x + file * boardView.tileSize + boardView.tileSize * 0.5f;
+        float y = boardView.origin.y + screenRank * boardView.tileSize + boardView.tileSize * 0.5f;
+        return {x, y};
+    }
+
+    void DragDrop::Update(Engine::Board &board, const GUI::Board &boardView, const Camera2D &camera)
+    {
+        Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), camera);
+        this->dragDrop_.lastMouseWorld = mouseWorld;
+
+        int hoverIndex = -1;
+        bool isHovering = WorldToIndex(mouseWorld, boardView, hoverIndex);
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        {
+            this->dragDrop_.isMouseDown = true;
+            this->dragDrop_.pressMouseWorld = mouseWorld;
+
+            if (!isHovering)
             {
-                drag_.active = true;
-                drag_.source_index = index;
-                drag_.target_index = index;
-                drag_.piece = piece;
-                Vector2 center = IndexToWorldCenter(index, view);
-                // Keep the piece anchored relative to the cursor during drag.
-                drag_.grab_offset = Vector2Subtract(center, mouse_world);
+                ClearSelection(this->dragDrop_);
+            }
+            else
+            {
+                char hoveredPiece = board.state[hoverIndex];
+                bool isFriendly = Engine::isFriendlyPiece(board.isWhiteTurn, hoveredPiece);
+
+                if (this->dragDrop_.hasSelection)
+                {
+                    if (hoverIndex == this->dragDrop_.selectedIndex)
+                    {
+                        this->dragDrop_.targetIndex = hoverIndex;
+                    }
+                    else if (isFriendly)
+                    {
+                        SelectPiece(this->dragDrop_, hoverIndex, hoveredPiece);
+                    }
+                    else
+                    {
+                        bool moved = TryMove(board, this->dragDrop_.selectedIndex, hoverIndex);
+                        if (moved)
+                        {
+                            ClearSelection(this->dragDrop_);
+                        }
+                        else
+                        {
+                            this->dragDrop_.targetIndex = this->dragDrop_.selectedIndex;
+                        }
+                    }
+                }
+                else if (isFriendly)
+                {
+                    SelectPiece(this->dragDrop_, hoverIndex, hoveredPiece);
+                }
             }
         }
-    }
 
-    if (drag_.active)
-    {
-        int index = -1;
-        if (WorldToIndex(mouse_world, view, index))
+        if (this->dragDrop_.isMouseDown && this->dragDrop_.hasSelection)
         {
-            drag_.target_index = index;
-        }
-        else
-        {
-            drag_.target_index = -1;
-        }
-    }
+            float dragThreshold = boardView.tileSize * 0.15f;
+            Vector2 dragDelta = Vector2Subtract(mouseWorld, this->dragDrop_.pressMouseWorld);
+            float dragDistance = Vector2LengthSqr(dragDelta);
 
-    if (drag_.active && IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
-    {
-        bool moved = false;
-        if (drag_.target_index >= 0 && drag_.target_index != drag_.source_index)
-        {
-            char target_piece = board.state[drag_.target_index];
-            if (target_piece == 0 || IsOpponentPiece(board.isWhiteTurn, target_piece))
+            if (!this->dragDrop_.isDragging && dragDistance > dragThreshold * dragThreshold)
             {
-                board.forceMove(drag_.source_index, drag_.target_index);
-                board.isWhiteTurn = !board.isWhiteTurn;
-                moved = true;
+                this->dragDrop_.isDragging = true;
+                Vector2 center = IndexToWorldCenter(this->dragDrop_.selectedIndex, boardView);
+                this->dragDrop_.grabOffset = Vector2Subtract(center, mouseWorld);
+            }
+
+            if (this->dragDrop_.isDragging)
+            {
+                this->dragDrop_.targetIndex = isHovering ? hoverIndex : -1;
             }
         }
 
-        if (!moved)
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
         {
-            board.state[drag_.source_index] = drag_.piece;
+            this->dragDrop_.isMouseDown = false;
+
+            if (this->dragDrop_.isDragging)
+            {
+                bool moved = false;
+                if (this->dragDrop_.targetIndex >= 0 && this->dragDrop_.targetIndex != this->dragDrop_.selectedIndex)
+                {
+                    moved = TryMove(board, this->dragDrop_.selectedIndex, this->dragDrop_.targetIndex);
+                }
+
+                if (moved)
+                {
+                    ClearSelection(this->dragDrop_);
+                }
+                else
+                {
+                    this->dragDrop_.targetIndex = this->dragDrop_.selectedIndex;
+                }
+            }
+
+            this->dragDrop_.isDragging = false;
         }
-
-        drag_.active = false;
-        drag_.source_index = -1;
-        drag_.target_index = -1;
-        drag_.piece = 0;
     }
-}
 
-DragDropSystem::DragView DragDropSystem::GetDragView() const
-{
-    DragView view = {};
-    view.active = drag_.active;
-    view.source_index = drag_.source_index;
-    view.target_index = drag_.target_index;
-    view.piece = drag_.piece;
-    view.world_pos = drag_.last_mouse_world;
-    view.grab_offset = drag_.grab_offset;
-    return view;
-}
+    DragDrop::DragDropView DragDrop::GetView() const
+    {
+        DragDropView view = {};
+        view.isDragging = this->dragDrop_.isDragging;
+        view.hasSelection = this->dragDrop_.hasSelection;
+        view.selectedIndex = this->dragDrop_.selectedIndex;
+        view.targetIndex = this->dragDrop_.targetIndex;
+        view.selectedPiece = this->dragDrop_.selectedPiece;
+        view.worldPos = this->dragDrop_.lastMouseWorld;
+        view.grabOffset = this->dragDrop_.grabOffset;
+        return view;
+    }
 
+    int DragDrop::GetSelectedIndex() const
+    {
+        return this->dragDrop_.selectedIndex;
+    }
+
+    char DragDrop::GetSelectedPiece() const
+    {
+        return this->dragDrop_.selectedPiece;
+    }
+
+    bool DragDrop::HasSelection() const
+    {
+        return this->dragDrop_.hasSelection;
+    }
+
+}
