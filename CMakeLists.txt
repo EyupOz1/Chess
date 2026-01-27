@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 project(chess LANGUAGES CXX)
 
+# Recommended build dirs:
+# - Desktop: build/Chess
+# - Web: build/Chess-web
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 23)

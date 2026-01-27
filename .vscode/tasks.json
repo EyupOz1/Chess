@@ -4,18 +4,52 @@
     {
       "label": "Configure (Debug)",
       "type": "shell",
-      "command": "cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug",
+      "command": "cmake -S . -B build/Chess -G Ninja -DCMAKE_BUILD_TYPE=Debug",
       "group": "build"
     },
     {
       "label": "Build (Debug)",
       "type": "shell",
-      "command": "cmake --build build",
+      "command": "cmake --build build/Chess",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "dependsOn": "Configure (Debug)",
+      "dependsOn": "Configure (Debug)"
+    },
+    {
+      "label": "Configure (Web, Release)",
+      "type": "process",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "call external\\emsdk\\emsdk_env.bat && emcmake cmake -S . -B build/Chess-web -DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web"
+      ],
+      "group": "build",
+      "detail": "Requires Emscripten SDK at external/emsdk."
+    },
+    {
+      "label": "Build (Web, Release)",
+      "type": "process",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "call external\\emsdk\\emsdk_env.bat && cmake --build build/Chess-web"
+      ],
+      "group": "build",
+      "dependsOn": "Configure (Web, Release)",
+      "detail": "Requires Emscripten SDK at external/emsdk."
+    },
+    {
+      "label": "Run (Web, emrun)",
+      "type": "process",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "call external\\emsdk\\emsdk_env.bat && emrun build\\Chess-web\\gui\\chess_gui.html"
+      ],
+      "dependsOn": "Build (Web, Release)",
+      "detail": "Requires Emscripten SDK at external/emsdk."
     }
   ]
 }

@@ -6,8 +6,8 @@
             "name": "Debug Chess GUI",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/gui/chess_gui.exe",
-            "cwd": "${workspaceFolder}/build/gui",
+            "program": "${workspaceFolder}/build/Chess/gui/chess_gui.exe",
+            "cwd": "${workspaceFolder}/build/Chess/gui",
             "MIMode": "gdb",
             "miDebuggerPath": "gdb",
             "preLaunchTask": "Build (Debug)"
