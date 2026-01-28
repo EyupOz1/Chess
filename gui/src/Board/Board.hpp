@@ -1,8 +1,7 @@
-
 #pragma once
 
 #include "raylib.h"
-#include "chess/Utils.hpp"
+#include "chess/Move.hpp"
 #include <vector>
 
 namespace GUI

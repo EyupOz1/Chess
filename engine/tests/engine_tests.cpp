@@ -1,5 +1,6 @@
 #include "chess/Board.hpp"
 #include "chess/MoveGen.hpp"
+#include "chess/Rules.hpp"
 #include "chess/Utils.hpp"
 
 #include <iostream>
@@ -28,20 +29,19 @@ int main()
 {
     {
         Engine::Board board;
-        board.state.fill(0);
-        board.history.clear();
-        board.isWhiteTurn = true;
+        board.Clear();
+        board.SetTurn(true);
 
         int whitePawn = idx(4, 4); // e5
         int blackPawn = idx(3, 4); // d5
-        board.state[whitePawn] = 'P';
-        board.state[blackPawn] = 'p';
-        board.history.push_back({'p', idx(3, 6), idx(3, 4)});
+        board.SetPiece(whitePawn, 'P');
+        board.SetPiece(blackPawn, 'p');
+        int enPassantTarget = idx(3, 5); // d6
+        board.SetEnPassantIndex(enPassantTarget);
 
         Engine::MoveGen moveGen;
         std::vector<Engine::Move> moves = moveGen.GetPawnMoves(board, whitePawn);
 
-        int enPassantTarget = idx(3, 5); // d6
         bool found = false;
         for (const Engine::Move &move : moves)
         {
@@ -50,26 +50,25 @@ int main()
         }
         expect(found, "en passant move exists");
 
-        int result = board.Move(whitePawn, enPassantTarget);
-        expect(result == 0, "en passant move allowed");
-        expect(board.state[enPassantTarget] == 'P', "en passant moved pawn");
-        expect(board.state[blackPawn] == 0, "en passant captured pawn");
+        Engine::MoveResult result = board.TryMove(whitePawn, enPassantTarget);
+        expect(result.Ok(), "en passant move allowed");
+        expect(board.PieceAt(enPassantTarget) == 'P', "en passant moved pawn");
+        expect(board.PieceAt(blackPawn) == 0, "en passant captured pawn");
     }
 
     {
         Engine::Board board;
-        board.state.fill(0);
-        board.history.clear();
-        board.isWhiteTurn = true;
-        board.castlingRights = {true, true, true, true};
+        board.Clear();
+        board.SetTurn(true);
+        board.SetCastlingRights({true, true, true, true});
 
         int whiteKing = idx(4, 0); // e1
         int whiteRook = idx(7, 0); // h1
         int castleTarget = idx(6, 0); // g1
         int rookTarget = idx(5, 0); // f1
 
-        board.state[whiteKing] = 'K';
-        board.state[whiteRook] = 'R';
+        board.SetPiece(whiteKing, 'K');
+        board.SetPiece(whiteRook, 'R');
 
         Engine::MoveGen moveGen;
         std::vector<Engine::Move> moves = moveGen.GetKingMoves(board, whiteKing);
@@ -82,25 +81,23 @@ int main()
         }
         expect(found, "castling move exists");
 
-        int result = board.Move(whiteKing, castleTarget);
-        expect(result == 0, "castling move allowed");
-        expect(board.state[castleTarget] == 'K', "king castled");
-        expect(board.state[rookTarget] == 'R', "rook moved on castle");
+        Engine::MoveResult result = board.TryMove(whiteKing, castleTarget);
+        expect(result.Ok(), "castling move allowed");
+        expect(board.PieceAt(castleTarget) == 'K', "king castled");
+        expect(board.PieceAt(rookTarget) == 'R', "rook moved on castle");
     }
 
     {
         Engine::Board board;
-        board.state.fill(0);
-        board.history.clear();
-        board.isWhiteTurn = true;
+        board.Clear();
+        board.SetTurn(true);
 
         int whitePawn = idx(4, 4); // e5
         int blackPawn = idx(3, 4); // d5
-        board.state[whitePawn] = 'P';
-        board.state[blackPawn] = 'p';
+        board.SetPiece(whitePawn, 'P');
+        board.SetPiece(blackPawn, 'p');
 
-        board.history.push_back({'p', idx(3, 6), idx(3, 4)});
-        board.history.push_back({'N', idx(6, 0), idx(5, 2)});
+        board.SetEnPassantIndex(-1);
 
         Engine::MoveGen moveGen;
         std::vector<Engine::Move> moves = moveGen.GetPawnMoves(board, whitePawn);
@@ -117,51 +114,56 @@ int main()
 
     {
         Engine::Board board;
-        board.state.fill(0);
-        board.history.clear();
-        board.isWhiteTurn = true;
-        board.castlingRights = {true, true, true, true};
+        board.Clear();
+        board.SetTurn(true);
+        board.SetCastlingRights({true, true, true, true});
 
         int whiteKing = idx(4, 0); // e1
         int whiteRookH = idx(7, 0); // h1
         int whiteRookA = idx(0, 0); // a1
         int blackRookA = idx(0, 7); // a8
 
-        board.state[whiteKing] = 'K';
-        board.state[whiteRookH] = 'R';
-        board.state[whiteRookA] = 'R';
-        board.state[blackRookA] = 'r';
+        board.SetPiece(whiteKing, 'K');
+        board.SetPiece(whiteRookH, 'R');
+        board.SetPiece(whiteRookA, 'R');
+        board.SetPiece(blackRookA, 'r');
 
-        board.Move(whiteRookH, idx(6, 0));
-        expect(board.castlingRights[0] == false, "king side right lost after rook move");
+        board.TryMove(whiteRookH, idx(6, 0));
+        expect(board.CastlingRights()[0] == false, "king side right lost after rook move");
 
-        board.isWhiteTurn = true;
-        board.Move(whiteRookA, idx(0, 1));
-        expect(board.castlingRights[1] == false, "queen side right lost after rook move");
+        board.SetTurn(true);
+        board.TryMove(whiteRookA, idx(0, 1));
+        expect(board.CastlingRights()[1] == false, "queen side right lost after rook move");
 
-        board.isWhiteTurn = true;
-        board.Move(whiteKing, idx(4, 1));
-        expect(board.castlingRights[0] == false && board.castlingRights[1] == false, "king move removes both rights");
+        board.SetTurn(true);
+        board.TryMove(whiteKing, idx(4, 1));
+        expect(board.CastlingRights()[0] == false && board.CastlingRights()[1] == false, "king move removes both rights");
 
-        board.isWhiteTurn = false;
-        board.Move(blackRookA, idx(0, 0));
-        expect(board.castlingRights[1] == false, "rook capture removes queen side right");
+        board.SetTurn(false);
+        board.TryMove(blackRookA, idx(0, 0));
+        expect(board.CastlingRights()[1] == false, "rook capture removes queen side right");
     }
 
     {
         Engine::Board board;
-        board.state.fill(0);
-        board.history.clear();
-        board.isWhiteTurn = true;
+        board.Clear();
+        board.SetTurn(true);
 
         int whitePawn = idx(4, 1); // e2
         int illegalTarget = idx(4, 3); // e4 (blocked)
-        board.state[whitePawn] = 'P';
+        board.SetPiece(whitePawn, 'P');
 
-        board.state[idx(4, 2)] = 'p';
-        int result = board.Move(whitePawn, illegalTarget);
-        expect(result != 0, "illegal move rejected");
-        expect(board.isWhiteTurn == true, "turn unchanged after illegal move");
+        board.SetPiece(idx(4, 2), 'p');
+        Engine::MoveResult result = board.TryMove(whitePawn, illegalTarget);
+        expect(!result.Ok(), "illegal move rejected");
+        expect(board.IsWhiteTurn() == true, "turn unchanged after illegal move");
+    }
+
+    {
+        Engine::Board board;
+        int status = board.LoadFen("7k/6Q1/7K/8/8/8/8/8 b - - 0 1");
+        expect(status == 0, "load checkmate FEN");
+        expect(Engine::Rules::GetStatus(board) == Engine::PositionStatus::Checkmate, "checkmate detected");
     }
 
     if (failures == 0)

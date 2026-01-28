@@ -31,22 +31,6 @@ namespace GUI
         state.selectedPiece = piece;
     }
 
-    bool DragDrop::TryMove(Engine::Board &board, int sourceIndex, int targetIndex)
-    {
-        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex == targetIndex)
-        {
-            return false;
-        }
-
-        char targetPiece = board.state[targetIndex];
-        if (targetPiece != 0 && !Engine::isOpponentPiece(board.isWhiteTurn, targetPiece))
-        {
-            return false;
-        }
-
-        return board.Move(sourceIndex, targetIndex) == 0;
-    }
-
     bool DragDrop::WorldToIndex(Vector2 world, const GUI::Board &boardView, int &outIndex)
     {
         float fx = (world.x - boardView.origin.x) / boardView.tileSize;
@@ -82,7 +66,7 @@ namespace GUI
         return {x, y};
     }
 
-    void DragDrop::Update(Engine::Board &board, const GUI::Board &boardView, const Camera2D &camera)
+    void DragDrop::Update(const Engine::Board &board, const GUI::Board &boardView, const Camera2D &camera)
     {
         Vector2 mouseWorld = GetScreenToWorld2D(GetMousePosition(), camera);
         this->dragDrop_.lastMouseWorld = mouseWorld;
@@ -101,8 +85,8 @@ namespace GUI
             }
             else
             {
-                char hoveredPiece = board.state[hoverIndex];
-                bool isFriendly = Engine::isFriendlyPiece(board.isWhiteTurn, hoveredPiece);
+                char hoveredPiece = board.PieceAt(hoverIndex);
+                bool isFriendly = Engine::isFriendlyPiece(board.IsWhiteTurn(), hoveredPiece);
 
                 if (this->dragDrop_.hasSelection)
                 {
@@ -116,15 +100,7 @@ namespace GUI
                     }
                     else
                     {
-                        bool moved = TryMove(board, this->dragDrop_.selectedIndex, hoverIndex);
-                        if (moved)
-                        {
-                            ClearSelection(this->dragDrop_);
-                        }
-                        else
-                        {
-                            this->dragDrop_.targetIndex = this->dragDrop_.selectedIndex;
-                        }
+                        this->dragDrop_.targetIndex = hoverIndex;
                     }
                 }
                 else if (isFriendly)
@@ -159,24 +135,49 @@ namespace GUI
 
             if (this->dragDrop_.isDragging)
             {
-                bool moved = false;
                 if (this->dragDrop_.targetIndex >= 0 && this->dragDrop_.targetIndex != this->dragDrop_.selectedIndex)
                 {
-                    moved = TryMove(board, this->dragDrop_.selectedIndex, this->dragDrop_.targetIndex);
-                }
-
-                if (moved)
-                {
-                    ClearSelection(this->dragDrop_);
+                    this->dragDrop_.pendingMove = {this->dragDrop_.selectedIndex, this->dragDrop_.targetIndex};
+                    this->dragDrop_.lastMoveAttempt = this->dragDrop_.pendingMove;
+                    this->dragDrop_.hasPendingMove = true;
                 }
                 else
                 {
                     this->dragDrop_.targetIndex = this->dragDrop_.selectedIndex;
                 }
             }
+            else if (this->dragDrop_.hasSelection && isHovering && hoverIndex != this->dragDrop_.selectedIndex)
+            {
+                this->dragDrop_.pendingMove = {this->dragDrop_.selectedIndex, hoverIndex};
+                this->dragDrop_.lastMoveAttempt = this->dragDrop_.pendingMove;
+                this->dragDrop_.hasPendingMove = true;
+            }
 
             this->dragDrop_.isDragging = false;
         }
+    }
+
+    bool DragDrop::ConsumeMoveRequest(MoveRequest &outRequest)
+    {
+        if (!this->dragDrop_.hasPendingMove)
+        {
+            return false;
+        }
+
+        outRequest = this->dragDrop_.pendingMove;
+        this->dragDrop_.hasPendingMove = false;
+        return true;
+    }
+
+    void DragDrop::ApplyMoveResult(bool moved)
+    {
+        if (moved)
+        {
+            ClearSelection(this->dragDrop_);
+            return;
+        }
+
+        this->dragDrop_.targetIndex = this->dragDrop_.selectedIndex;
     }
 
     DragDrop::DragDropView DragDrop::GetView() const

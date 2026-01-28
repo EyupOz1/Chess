@@ -34,10 +34,4 @@ namespace Engine
     bool isFriendlyPiece(bool isWhiteTurn, char piece);
     bool isOpponentPiece(bool isWhiteTurn, char piece);
 
-    struct Move
-    {
-        char piece;
-        int start, end;
-    };
-
 }

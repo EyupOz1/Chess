@@ -91,7 +91,7 @@ namespace GUI
         int totalSquares = boardView.boardSize * boardView.boardSize;
         for (int index = 0; index < totalSquares; ++index)
         {
-            char piece = board.state[index];
+            char piece = board.PieceAt(index);
             if (piece == 0)
             {
                 continue;
