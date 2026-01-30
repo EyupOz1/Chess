@@ -9,6 +9,30 @@
 
 namespace Engine
 {
+    namespace
+    {
+        bool IsFenPiece(char piece)
+        {
+            switch (piece)
+            {
+            case 'p':
+            case 'r':
+            case 'n':
+            case 'b':
+            case 'q':
+            case 'k':
+            case 'P':
+            case 'R':
+            case 'N':
+            case 'B':
+            case 'Q':
+            case 'K':
+                return true;
+            default:
+                return false;
+            }
+        }
+    }
 
     Board::Board()
     {
@@ -143,7 +167,7 @@ namespace Engine
                 continue;
             }
 
-            if (isChar(curr))
+            if (IsFenPiece(curr))
             {
                 if (rank < 0 || file >= kBoardSize)
                 {
@@ -163,6 +187,10 @@ namespace Engine
             return -1;
         }
 
+        if (turnPart != "w" && turnPart != "b")
+        {
+            return -1;
+        }
         this->isWhiteTurn_ = (turnPart == "w");
 
         this->castlingRights_ = {};
@@ -193,6 +221,94 @@ namespace Engine
         this->fullMoves_ = fullMoves;
 
         return 0;
+    }
+
+    std::string Board::ExportFen() const
+    {
+        std::string fen;
+        fen.reserve(80);
+
+        for (int rank = kBoardSize - 1; rank >= 0; --rank)
+        {
+            int emptyCount = 0;
+            for (int file = 0; file < kBoardSize; ++file)
+            {
+                int index = indexFromFileRank(file, rank, kBoardSize);
+                char piece = this->state_[index];
+                if (piece == 0)
+                {
+                    emptyCount++;
+                    continue;
+                }
+
+                if (emptyCount > 0)
+                {
+                    fen.push_back(static_cast<char>('0' + emptyCount));
+                    emptyCount = 0;
+                }
+                fen.push_back(piece);
+            }
+
+            if (emptyCount > 0)
+            {
+                fen.push_back(static_cast<char>('0' + emptyCount));
+            }
+
+            if (rank > 0)
+            {
+                fen.push_back('/');
+            }
+        }
+
+        fen.push_back(' ');
+        fen.push_back(this->isWhiteTurn_ ? 'w' : 'b');
+        fen.push_back(' ');
+
+        bool anyRights = false;
+        if (this->castlingRights_[0])
+        {
+            fen.push_back('K');
+            anyRights = true;
+        }
+        if (this->castlingRights_[1])
+        {
+            fen.push_back('Q');
+            anyRights = true;
+        }
+        if (this->castlingRights_[2])
+        {
+            fen.push_back('k');
+            anyRights = true;
+        }
+        if (this->castlingRights_[3])
+        {
+            fen.push_back('q');
+            anyRights = true;
+        }
+        if (!anyRights)
+        {
+            fen.push_back('-');
+        }
+
+        fen.push_back(' ');
+        if (this->enPassantIndex_ >= 0)
+        {
+            int file = fileFromIndex(this->enPassantIndex_, kBoardSize);
+            int rank = rankFromIndex(this->enPassantIndex_, kBoardSize);
+            fen.push_back(static_cast<char>('a' + file));
+            fen.push_back(static_cast<char>('1' + rank));
+        }
+        else
+        {
+            fen.push_back('-');
+        }
+
+        fen.push_back(' ');
+        fen += std::to_string(this->halfMoves_);
+        fen.push_back(' ');
+        fen += std::to_string(this->fullMoves_);
+
+        return fen;
     }
 
     void Board::PrintBoard()
@@ -333,6 +449,11 @@ namespace Engine
         }
 
         char targetPiece = this->state_[move.end];
+        if (targetPiece != 0 && is_upper(source) == is_upper(targetPiece))
+        {
+            result.error = MoveError::IllegalMove;
+            return result;
+        }
 
         Vec2 sourceCoords = indexToVec2(move.start);
         Vec2 targetCoords = indexToVec2(move.end);
@@ -379,6 +500,13 @@ namespace Engine
 
             int capturedPawnY = isWhitePiece ? (targetCoords.y - 1) : (targetCoords.y + 1);
             int capturedIndex = vec2ToIndex({targetCoords.x, capturedPawnY});
+            char capturedPiece = this->state_[capturedIndex];
+            char expectedPawn = isWhitePiece ? 'p' : 'P';
+            if (capturedPiece != expectedPawn)
+            {
+                result.error = MoveError::IllegalMove;
+                return result;
+            }
             this->state_[capturedIndex] = 0;
             targetPiece = isWhitePiece ? 'p' : 'P';
         }

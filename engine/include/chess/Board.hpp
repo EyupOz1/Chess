@@ -41,7 +41,7 @@ namespace Engine
         void Clear();
 
         int LoadFen(std::string FEN);
-        std::string ExportFen();
+        std::string ExportFen() const;
 
         void PrintBoard();
         void PrintInfo();

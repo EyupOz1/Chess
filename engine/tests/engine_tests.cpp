@@ -166,6 +166,14 @@ int main()
         expect(Engine::Rules::GetStatus(board) == Engine::PositionStatus::Checkmate, "checkmate detected");
     }
 
+    {
+        Engine::Board board;
+        const char *fen = "rnbqkbnr/pp1ppppp/8/2p5/8/4P3/PPPP1PPP/RNBQKBNR b KQkq c6 0 2";
+        int status = board.LoadFen(fen);
+        expect(status == 0, "load FEN for export test");
+        expect(board.ExportFen() == fen, "exported FEN matches input");
+    }
+
     if (failures == 0)
     {
         std::cout << "All tests passed\n";

@@ -112,7 +112,11 @@ namespace Engine
                 {
                     if (board.PieceAt(enPassantIndex) == 0)
                     {
-                        possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
+                        int capturedIndex = vec2ToIndex({enPassantCoords.x, coords.y});
+                        if (board.PieceAt(capturedIndex) == 'p')
+                        {
+                            possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
+                        }
                     }
                 }
             }
@@ -163,7 +167,11 @@ namespace Engine
                 {
                     if (board.PieceAt(enPassantIndex) == 0)
                     {
-                        possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
+                        int capturedIndex = vec2ToIndex({enPassantCoords.x, coords.y});
+                        if (board.PieceAt(capturedIndex) == 'P')
+                        {
+                            possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
+                        }
                     }
                 }
             }

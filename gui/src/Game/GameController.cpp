@@ -14,6 +14,23 @@ namespace GUI
         UpdateStatus();
     }
 
+    bool GameController::LoadFen(const std::string &fen)
+    {
+        int result = board_.LoadFen(fen);
+        if (result != 0)
+        {
+            return false;
+        }
+        ClearCachedMoves();
+        UpdateStatus();
+        return true;
+    }
+
+    std::string GameController::ExportFen() const
+    {
+        return board_.ExportFen();
+    }
+
     const Engine::Board &GameController::Board() const
     {
         return board_;

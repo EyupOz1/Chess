@@ -4,6 +4,8 @@
 
 #include "chess/Utils.hpp"
 
+#include <algorithm>
+
 namespace GUI
 {
 
@@ -34,7 +36,7 @@ namespace GUI
         {
             return {245, 245, 245, 255};
         }
-        return {40, 40, 40, 255};
+        return {35, 35, 35, 255};
     }
 
     static Color GetPieceTextColor(char piece)
@@ -58,14 +60,38 @@ namespace GUI
                  GetPieceTextColor(piece));
     }
 
-    static void DrawPiece(char piece, Vector2 center, float tileSize)
+    static void DrawPieceFallback(char piece, Vector2 center, float tileSize)
     {
-        DrawCircleV(center, tileSize * 0.35f, GetPieceFill(piece));
-        DrawCircleLines(static_cast<int>(center.x), static_cast<int>(center.y), tileSize * 0.35f, {0, 0, 0, 80});
+        float radius = tileSize * 0.35f;
+        Vector2 shadowOffset = {2.0f, 3.0f};
+        DrawCircleV(Vector2Add(center, shadowOffset), radius * 1.02f, (Color){0, 0, 0, 60});
+
+        Color base = GetPieceFill(piece);
+        Color rim = Engine::is_upper(piece) ? (Color){220, 220, 220, 255} : (Color){55, 55, 55, 255};
+        DrawCircleGradient(static_cast<int>(center.x), static_cast<int>(center.y), radius, base, rim);
+        DrawCircleLines(static_cast<int>(center.x), static_cast<int>(center.y), radius, (Color){0, 0, 0, 90});
         DrawPieceGlyph(piece, center, tileSize);
     }
 
-    void DrawPieces(const Engine::Board &board, const GUI::Board &boardView, const DragDrop::DragDropView &dragView)
+    static void DrawPieceTexture(Texture2D *tex, Vector2 center, float tileSize)
+    {
+        if (tex == nullptr || tex->id == 0)
+        {
+            return;
+        }
+
+        float maxSize = tileSize * 0.9f;
+        float scale = maxSize / static_cast<float>(std::max(tex->width, tex->height));
+        float drawW = tex->width * scale;
+        float drawH = tex->height * scale;
+
+        Rectangle src = {0.0f, 0.0f, static_cast<float>(tex->width), static_cast<float>(tex->height)};
+        Rectangle dst = {center.x, center.y, drawW, drawH};
+        Vector2 origin = {drawW * 0.5f, drawH * 0.5f};
+        DrawTexturePro(*tex, src, dst, origin, 0.0f, WHITE);
+    }
+
+    void DrawPieces(const Engine::Board &board, const GUI::Board &boardView, const DragDrop::DragDropView &dragView, ThemeAssets &themeAssets)
     {
         if (dragView.hasSelection && dragView.selectedIndex >= 0)
         {
@@ -101,13 +127,29 @@ namespace GUI
                 continue;
             }
             Vector2 center = IndexToWorldCenter(index, boardView);
-            DrawPiece(piece, center, boardView.tileSize);
+            Texture2D *tex = GetTextureForPiece(themeAssets, piece);
+            if (tex)
+            {
+                DrawPieceTexture(tex, center, boardView.tileSize);
+            }
+            else
+            {
+                DrawPieceFallback(piece, center, boardView.tileSize);
+            }
         }
 
         if (dragView.isDragging && dragView.selectedPiece != 0)
         {
             Vector2 center = Vector2Add(dragView.worldPos, dragView.grabOffset);
-            DrawPiece(dragView.selectedPiece, center, boardView.tileSize);
+            Texture2D *tex = GetTextureForPiece(themeAssets, dragView.selectedPiece);
+            if (tex)
+            {
+                DrawPieceTexture(tex, center, boardView.tileSize);
+            }
+            else
+            {
+                DrawPieceFallback(dragView.selectedPiece, center, boardView.tileSize);
+            }
         }
     }
 

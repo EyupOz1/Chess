@@ -13,4 +13,5 @@ set_target_properties(chess_gui PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINA
 
 if (${PLATFORM} MATCHES "Web")
   set_target_properties(chess_gui PROPERTIES SUFFIX ".html")
+  target_link_options(chess_gui PRIVATE "--preload-file" "${CMAKE_SOURCE_DIR}/gui/res@/res")
 endif()

@@ -13,6 +13,9 @@ namespace GUI
         float tileSize;
         int boardSize;
         bool flipped;
+        Color lightColor;
+        Color darkColor;
+        Color borderColor;
 
         Board(float tileSize, Vector2 center, bool flipped);
 

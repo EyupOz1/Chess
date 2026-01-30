@@ -3,6 +3,7 @@
 #include "chess/Board.hpp"
 #include "chess/Rules.hpp"
 
+#include <string>
 #include <vector>
 
 namespace GUI
@@ -14,6 +15,8 @@ namespace GUI
         GameController();
 
         void LoadStartPosition();
+        bool LoadFen(const std::string &fen);
+        std::string ExportFen() const;
 
         const Engine::Board &Board() const;
         Engine::Board &BoardMutable();
