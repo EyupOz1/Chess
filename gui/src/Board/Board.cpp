@@ -47,7 +47,7 @@ void GUI::Board::HighlightCells(const std::vector<Engine::Move> &moves)
     const Color highlight = {60, 140, 95, 130};
     for (size_t i = 0; i < moves.size(); i++)
     {
-        int targetIndex = moves[i].end;
+        int targetIndex = moves[i].to;
         Engine::Vec2 coords = Engine::indexToVec2(targetIndex);
         if (this->flipped)
         {

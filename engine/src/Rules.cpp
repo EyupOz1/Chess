@@ -39,8 +39,8 @@ namespace Engine
                 return false;
             }
 
-            Vec2 start = indexToVec2(move.start);
-            Vec2 end = indexToVec2(move.end);
+            Vec2 start = indexToVec2(move.from);
+            Vec2 end = indexToVec2(move.to);
 
             int step = (end.x > start.x) ? 1 : -1;
             int squaresToCheck[2] = {start.x + step, start.x + 2 * step};
@@ -199,12 +199,12 @@ namespace Engine
 
     bool Rules::IsLegalMove(const Board &board, const Move &move)
     {
-        if (!IsValidIndex(move.start) || !IsValidIndex(move.end))
+        if (!IsValidIndex(move.from) || !IsValidIndex(move.to))
         {
             return false;
         }
 
-        char piece = board.PieceAt(move.start);
+        char piece = board.PieceAt(move.from);
         if (piece == 0)
         {
             return false;

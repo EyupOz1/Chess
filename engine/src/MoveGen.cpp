@@ -1,490 +1,610 @@
 #include "chess/MoveGen.hpp"
 #include "chess/Utils.hpp"
-
-#include <vector>
+#include <cmath>
 
 namespace Engine
 {
 
-    std::vector<Move> MoveGen::GetPseudoLegalMoves(const Board &board, int index)
+    MoveGenerator::MoveGenerator()
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        char lower = to_lower(piece);
-
-        if (lower == 'p')
-            return this->GetPawnMoves(board, index);
-
-        if (lower == 'n')
-            return this->GetKnightMoves(board, index);
-
-        if (lower == 'b')
-            return this->GetBishopMoves(board, index);
-
-        if (lower == 'r')
-            return this->GetRookMoves(board, index);
-
-        if (lower == 'q')
-            return this->GetQueenMoves(board, index);
-
-        if (lower == 'k')
-            return this->GetKingMoves(board, index);
-
-        return possibleMoves;
+        InitializeLookupTables();
     }
 
-    static void AddPawnMove(std::vector<Move> &moves, char pawn, int from, int to)
+    void MoveGenerator::InitializeLookupTables()
     {
-        Vec2 targetCoords = indexToVec2(to);
-        bool isPromotionRank = is_upper(pawn) ? (targetCoords.y == 7) : (targetCoords.y == 0);
-        if (!isPromotionRank)
-        {
-            moves.push_back({pawn, from, to});
-            return;
-        }
-
-        char promoPieces[4] = {'q', 'r', 'b', 'n'};
-        for (char promo : promoPieces)
-        {
-            char normalized = is_upper(pawn) ? to_upper(promo) : to_lower(promo);
-            Move move = {pawn, from, to};
-            move.promotion = normalized;
-            move.type = MoveType::Promotion;
-            moves.push_back(move);
-        }
+        InitializeKnightAttacks();
+        InitializeKingAttacks();
     }
 
-    std::vector<Move> MoveGen::GetPawnMoves(const Board &board, int index)
+    void MoveGenerator::InitializeKnightAttacks()
     {
-        std::vector<Move> possibleMoves;
+        knightAttacks_.fill(0);
+        int knightMoves[8][2] = {
+            {1, 2}, {2, 1}, {-1, 2}, {-2, 1},
+            {1, -2}, {2, -1}, {-1, -2}, {-2, -1}
+        };
 
-        char pawn = board.PieceAt(index);
-        if (pawn == 0)
-            return possibleMoves;
-
-        Vec2 coords = indexToVec2(index);
-        bool isWhitePawn = is_upper(pawn);
-
-        if (isWhitePawn)
+        for (int square = 0; square < 64; ++square)
         {
-            Vec2 upCoords = {coords.x, coords.y + 1};
-            int upIndex = vec2ToIndex(upCoords);
+            int file = fileFromIndex(square, 8);
+            int rank = rankFromIndex(square, 8);
 
-            Vec2 upUpCoords = {coords.x, coords.y + 2};
-            int upUpIndex = vec2ToIndex(upUpCoords);
-
-            Vec2 upRight = {coords.x + 1, coords.y + 1};
-            int upRightIndex = vec2ToIndex(upRight);
-
-            Vec2 upLeft = {coords.x - 1, coords.y + 1};
-            int upLeftIndex = vec2ToIndex(upLeft);
-
-            if (upRight.x <= 7 && is_lower(board.PieceAt(upRightIndex)))
+            for (const auto& move : knightMoves)
             {
-                AddPawnMove(possibleMoves, pawn, index, upRightIndex);
-            }
-
-            if (upLeft.x >= 0 && is_lower(board.PieceAt(upLeftIndex)))
-            {
-                AddPawnMove(possibleMoves, pawn, index, upLeftIndex);
-            }
-
-            if (upCoords.y <= 7 && board.PieceAt(upIndex) == 0)
-            {
-                AddPawnMove(possibleMoves, pawn, index, upIndex);
-
-                if (coords.y == 1 && board.PieceAt(upUpIndex) == 0)
+                int newFile = file + move[0];
+                int newRank = rank + move[1];
+                if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8)
                 {
-                    possibleMoves.push_back({pawn, index, upUpIndex});
+                    int targetSquare = indexFromFileRank(newFile, newRank, 8);
+                    knightAttacks_[square] |= (1ULL << targetSquare);
+                }
+            }
+        }
+    }
+
+    void MoveGenerator::InitializeKingAttacks()
+    {
+        kingAttacks_.fill(0);
+        int kingMoves[8][2] = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {-1, 1}, {1, -1}, {-1, -1}
+        };
+
+        for (int square = 0; square < 64; ++square)
+        {
+            int file = fileFromIndex(square, 8);
+            int rank = rankFromIndex(square, 8);
+
+            for (const auto& move : kingMoves)
+            {
+                int newFile = file + move[0];
+                int newRank = rank + move[1];
+                if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8)
+                {
+                    int targetSquare = indexFromFileRank(newFile, newRank, 8);
+                    kingAttacks_[square] |= (1ULL << targetSquare);
+                }
+            }
+        }
+    }
+
+    std::vector<Move> MoveGenerator::GetLegalMoves(const Position& pos)
+    {
+        std::vector<Move> moves = GetPseudoLegalMoves(pos);
+        std::vector<Move> legalMoves;
+
+        for (const auto& move : moves)
+        {
+            // TODO: Check if move leaves king in check
+            legalMoves.push_back(move);
+        }
+
+        return legalMoves;
+    }
+
+    std::vector<Move> MoveGenerator::GetLegalMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves = GetPseudoLegalMoves(pos, fromSquare);
+        std::vector<Move> legalMoves;
+
+        for (const auto& move : moves)
+        {
+            // TODO: Check if move leaves king in check
+            legalMoves.push_back(move);
+        }
+
+        return legalMoves;
+    }
+
+    std::vector<Move> MoveGenerator::GetPseudoLegalMoves(const Position& pos)
+    {
+        std::vector<Move> moves;
+
+        for (int square = 0; square < 64; ++square)
+        {
+            auto squareMoves = GetPseudoLegalMoves(pos, square);
+            moves.insert(moves.end(), squareMoves.begin(), squareMoves.end());
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetPseudoLegalMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+
+        char piece = pos.PieceAt(fromSquare);
+        if (piece == 0)
+            return moves;
+
+        // Check whose turn it is
+        bool isWhite = is_upper(piece);
+        if (isWhite != pos.IsWhiteToMove())
+            return moves;
+
+        char pieceLower = to_lower(piece);
+
+        switch (pieceLower)
+        {
+            case 'p': return GetPawnMoves(pos, fromSquare);
+            case 'n': return GetKnightMoves(pos, fromSquare);
+            case 'b': return GetBishopMoves(pos, fromSquare);
+            case 'r': return GetRookMoves(pos, fromSquare);
+            case 'q': return GetQueenMoves(pos, fromSquare);
+            case 'k': return GetKingMoves(pos, fromSquare);
+            default: return moves;
+        }
+    }
+
+    std::vector<Move> MoveGenerator::GetPawnMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char pawn = pos.PieceAt(fromSquare);
+        if (pawn == 0 || to_lower(pawn) != 'p')
+            return moves;
+
+        bool isWhite = is_upper(pawn);
+        int file = fileFromIndex(fromSquare, 8);
+        int rank = rankFromIndex(fromSquare, 8);
+
+        if (isWhite)
+        {
+            // Forward move
+            int fwdSquare = indexFromFileRank(file, rank + 1, 8);
+            if (rank + 1 < 8 && pos.PieceAt(fwdSquare) == 0)
+            {
+                AddPawnMove(moves, pos, fromSquare, fwdSquare);
+
+                // Double push from starting position
+                if (rank == 1)
+                {
+                    int fwdSquare2 = indexFromFileRank(file, rank + 2, 8);
+                    if (pos.PieceAt(fwdSquare2) == 0)
+                    {
+                        AddMove(moves, pos, fromSquare, fwdSquare2);
+                    }
                 }
             }
 
-            int enPassantIndex = board.EnPassantIndex();
-            if (enPassantIndex >= 0)
+            // Captures
+            if (file + 1 < 8 && rank + 1 < 8)
             {
-                Vec2 enPassantCoords = indexToVec2(enPassantIndex);
-                if (enPassantCoords.y == coords.y + 1 &&
-                    (enPassantCoords.x == coords.x + 1 || enPassantCoords.x == coords.x - 1))
+                int captureSquare = indexFromFileRank(file + 1, rank + 1, 8);
+                char target = pos.PieceAt(captureSquare);
+                if (target != 0 && is_lower(target))
                 {
-                    if (board.PieceAt(enPassantIndex) == 0)
-                    {
-                        int capturedIndex = vec2ToIndex({enPassantCoords.x, coords.y});
-                        if (board.PieceAt(capturedIndex) == 'p')
-                        {
-                            possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
-                        }
-                    }
+                    AddPawnMove(moves, pos, fromSquare, captureSquare);
+                }
+            }
+            if (file - 1 >= 0 && rank + 1 < 8)
+            {
+                int captureSquare = indexFromFileRank(file - 1, rank + 1, 8);
+                char target = pos.PieceAt(captureSquare);
+                if (target != 0 && is_lower(target))
+                {
+                    AddPawnMove(moves, pos, fromSquare, captureSquare);
+                }
+            }
+
+            // En passant
+            int epSquare = pos.GetEnPassantSquare();
+            if (epSquare >= 0)
+            {
+                int epFile = fileFromIndex(epSquare, 8);
+                int epRank = rankFromIndex(epSquare, 8);
+                if (epRank == rank + 1 && std::abs(epFile - file) == 1)
+                {
+                    AddMove(moves, pos, fromSquare, epSquare, MoveType::EnPassant);
                 }
             }
         }
         else
         {
-            Vec2 downCoords = {coords.x, coords.y - 1};
-            int downIndex = vec2ToIndex(downCoords);
-
-            Vec2 downDownCoords = {coords.x, coords.y - 2};
-            int downDownIndex = vec2ToIndex(downDownCoords);
-
-            Vec2 downRight = {coords.x + 1, coords.y - 1};
-            int downRightIndex = vec2ToIndex(downRight);
-
-            Vec2 downLeft = {coords.x - 1, coords.y - 1};
-            int downLeftIndex = vec2ToIndex(downLeft);
-
-            if (downRight.x <= 7 && is_upper(board.PieceAt(downRightIndex)))
+            // Forward move (down for black)
+            int fwdSquare = indexFromFileRank(file, rank - 1, 8);
+            if (rank - 1 >= 0 && pos.PieceAt(fwdSquare) == 0)
             {
-                AddPawnMove(possibleMoves, pawn, index, downRightIndex);
-            }
+                AddPawnMove(moves, pos, fromSquare, fwdSquare);
 
-            if (downLeft.x >= 0 && is_upper(board.PieceAt(downLeftIndex)))
-            {
-                AddPawnMove(possibleMoves, pawn, index, downLeftIndex);
-            }
-
-            if (board.PieceAt(downIndex) != 0)
-                return possibleMoves;
-
-            if (downCoords.y >= 0)
-            {
-                AddPawnMove(possibleMoves, pawn, index, downIndex);
-            }
-
-            if (coords.y == 6 && board.PieceAt(downDownIndex) == 0)
-            {
-                possibleMoves.push_back({pawn, index, downDownIndex});
-            }
-
-            int enPassantIndex = board.EnPassantIndex();
-            if (enPassantIndex >= 0)
-            {
-                Vec2 enPassantCoords = indexToVec2(enPassantIndex);
-                if (enPassantCoords.y == coords.y - 1 &&
-                    (enPassantCoords.x == coords.x + 1 || enPassantCoords.x == coords.x - 1))
+                // Double push from starting position
+                if (rank == 6)
                 {
-                    if (board.PieceAt(enPassantIndex) == 0)
+                    int fwdSquare2 = indexFromFileRank(file, rank - 2, 8);
+                    if (pos.PieceAt(fwdSquare2) == 0)
                     {
-                        int capturedIndex = vec2ToIndex({enPassantCoords.x, coords.y});
-                        if (board.PieceAt(capturedIndex) == 'P')
-                        {
-                            possibleMoves.push_back({pawn, index, enPassantIndex, 0, MoveType::EnPassant});
-                        }
+                        AddMove(moves, pos, fromSquare, fwdSquare2);
+                    }
+                }
+            }
+
+            // Captures
+            if (file + 1 < 8 && rank - 1 >= 0)
+            {
+                int captureSquare = indexFromFileRank(file + 1, rank - 1, 8);
+                char target = pos.PieceAt(captureSquare);
+                if (target != 0 && is_upper(target))
+                {
+                    AddPawnMove(moves, pos, fromSquare, captureSquare);
+                }
+            }
+            if (file - 1 >= 0 && rank - 1 >= 0)
+            {
+                int captureSquare = indexFromFileRank(file - 1, rank - 1, 8);
+                char target = pos.PieceAt(captureSquare);
+                if (target != 0 && is_upper(target))
+                {
+                    AddPawnMove(moves, pos, fromSquare, captureSquare);
+                }
+            }
+
+            // En passant
+            int epSquare = pos.GetEnPassantSquare();
+            if (epSquare >= 0)
+            {
+                int epFile = fileFromIndex(epSquare, 8);
+                int epRank = rankFromIndex(epSquare, 8);
+                if (epRank == rank - 1 && std::abs(epFile - file) == 1)
+                {
+                    AddMove(moves, pos, fromSquare, epSquare, MoveType::EnPassant);
+                }
+            }
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetKnightMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char knight = pos.PieceAt(fromSquare);
+        if (knight == 0)
+            return moves;
+
+        bool isWhite = is_upper(knight);
+        uint64_t attacks = knightAttacks_[fromSquare];
+
+        for (int toSquare = 0; toSquare < 64; ++toSquare)
+        {
+            if ((attacks & (1ULL << toSquare)) == 0)
+                continue;
+
+            char target = pos.PieceAt(toSquare);
+            if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+            {
+                AddMove(moves, pos, fromSquare, toSquare);
+            }
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetBishopMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char bishop = pos.PieceAt(fromSquare);
+        if (bishop == 0)
+            return moves;
+
+        bool isWhite = is_upper(bishop);
+
+        // Diagonal directions
+        int directions[4][2] = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+
+        for (const auto& dir : directions)
+        {
+            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
+            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            {
+                if ((rayAttacks & (1ULL << toSquare)) == 0)
+                    continue;
+
+                char target = pos.PieceAt(toSquare);
+                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                {
+                    AddMove(moves, pos, fromSquare, toSquare);
+                }
+
+                if (target != 0)
+                    break;  // Stop at first piece
+            }
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetRookMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char rook = pos.PieceAt(fromSquare);
+        if (rook == 0)
+            return moves;
+
+        bool isWhite = is_upper(rook);
+
+        // Orthogonal directions
+        int directions[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+        for (const auto& dir : directions)
+        {
+            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
+            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            {
+                if ((rayAttacks & (1ULL << toSquare)) == 0)
+                    continue;
+
+                char target = pos.PieceAt(toSquare);
+                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                {
+                    AddMove(moves, pos, fromSquare, toSquare);
+                }
+
+                if (target != 0)
+                    break;  // Stop at first piece
+            }
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetQueenMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char queen = pos.PieceAt(fromSquare);
+        if (queen == 0)
+            return moves;
+
+        bool isWhite = is_upper(queen);
+
+        // All 8 directions
+        int directions[8][2] = {
+            {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+            {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+        };
+
+        for (const auto& dir : directions)
+        {
+            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
+            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            {
+                if ((rayAttacks & (1ULL << toSquare)) == 0)
+                    continue;
+
+                char target = pos.PieceAt(toSquare);
+                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                {
+                    AddMove(moves, pos, fromSquare, toSquare);
+                }
+
+                if (target != 0)
+                    break;  // Stop at first piece
+            }
+        }
+
+        return moves;
+    }
+
+    std::vector<Move> MoveGenerator::GetKingMoves(const Position& pos, int fromSquare)
+    {
+        std::vector<Move> moves;
+        char king = pos.PieceAt(fromSquare);
+        if (king == 0)
+            return moves;
+
+        bool isWhite = is_upper(king);
+        uint64_t attacks = kingAttacks_[fromSquare];
+
+        // Normal king moves
+        for (int toSquare = 0; toSquare < 64; ++toSquare)
+        {
+            if ((attacks & (1ULL << toSquare)) == 0)
+                continue;
+
+            char target = pos.PieceAt(toSquare);
+            if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+            {
+                AddMove(moves, pos, fromSquare, toSquare);
+            }
+        }
+
+        // Castling
+        int rank = rankFromIndex(fromSquare, 8);
+        if ((isWhite && rank == 0 && fromSquare == 4) ||
+            (!isWhite && rank == 7 && fromSquare == 60))
+        {
+            const auto& castlingRights = pos.GetCastlingRights();
+
+            // Kingside castling
+            int castleIndex = isWhite ? 0 : 2;
+            if (castlingRights[castleIndex])
+            {
+                int rookSquare = isWhite ? 7 : 63;
+                int rook = pos.PieceAt(rookSquare);
+                if ((isWhite && rook == 'R') || (!isWhite && rook == 'r'))
+                {
+                    int f = isWhite ? 5 : 61;
+                    int g = isWhite ? 6 : 62;
+                    if (pos.PieceAt(f) == 0 && pos.PieceAt(g) == 0)
+                    {
+                        AddMove(moves, pos, fromSquare, g, MoveType::Castle);
+                    }
+                }
+            }
+
+            // Queenside castling
+            castleIndex = isWhite ? 1 : 3;
+            if (castlingRights[castleIndex])
+            {
+                int rookSquare = isWhite ? 0 : 56;
+                int rook = pos.PieceAt(rookSquare);
+                if ((isWhite && rook == 'R') || (!isWhite && rook == 'r'))
+                {
+                    int b = isWhite ? 1 : 57;
+                    int c = isWhite ? 2 : 58;
+                    int d = isWhite ? 3 : 59;
+                    if (pos.PieceAt(b) == 0 && pos.PieceAt(c) == 0 && pos.PieceAt(d) == 0)
+                    {
+                        AddMove(moves, pos, fromSquare, c, MoveType::Castle);
                     }
                 }
             }
         }
 
-        return possibleMoves;
+        return moves;
+    }
+
+    bool MoveGenerator::IsSquareAttacked(const Position& pos, int square, bool byWhite) const
+    {
+        // TODO: Implement efficiently using lookup tables
+        return false;
+    }
+
+    uint64_t MoveGenerator::GetAttackedSquares(const Position& pos, bool byWhite) const
+    {
+        // TODO: Implement
+        return 0;
+    }
+
+    uint64_t MoveGenerator::GetPawnAttackSquares(int square, bool isWhite) const
+    {
+        // TODO: Implement
+        return 0;
+    }
+
+    uint64_t MoveGenerator::GetRayAttacks(int square, const Position& pos, int dirX, int dirY) const
+    {
+        uint64_t attacks = 0;
+        int file = fileFromIndex(square, 8);
+        int rank = rankFromIndex(square, 8);
+
+        file += dirX;
+        rank += dirY;
+
+        while (file >= 0 && file < 8 && rank >= 0 && rank < 8)
+        {
+            int targetSquare = indexFromFileRank(file, rank, 8);
+            attacks |= (1ULL << targetSquare);
+
+            if (pos.PieceAt(targetSquare) != 0)
+                break;
+
+            file += dirX;
+            rank += dirY;
+        }
+
+        return attacks;
+    }
+
+    void MoveGenerator::AddMove(std::vector<Move>& moves, const Position& pos, int from, int to,
+                               MoveType type, char promotion) const
+    {
+        Move move;
+        move.from = from;
+        move.to = to;
+        move.type = type;
+        move.pieceMoved = pos.PieceAt(from);
+        move.pieceCaptured = pos.PieceAt(to);
+        move.promotion = promotion;
+        moves.push_back(move);
+    }
+
+    void MoveGenerator::AddPawnMove(std::vector<Move>& moves, const Position& pos, int from, int to) const
+    {
+        int rank = rankFromIndex(to, 8);
+        bool isPromotionRank = (rank == 7) || (rank == 0);
+
+        if (!isPromotionRank)
+        {
+            AddMove(moves, pos, from, to);
+            return;
+        }
+
+        // Promotion moves
+        char promoPieces[4] = {'Q', 'R', 'B', 'N'};
+        for (char promo : promoPieces)
+        {
+            char promoChar = is_upper(pos.PieceAt(from)) ? promo : to_lower(promo);
+            Move move;
+            move.from = from;
+            move.to = to;
+            move.type = MoveType::Promotion;
+            move.pieceMoved = pos.PieceAt(from);
+            move.pieceCaptured = pos.PieceAt(to);
+            move.promotion = promoChar;
+            moves.push_back(move);
+        }
+    }
+
+    // Legacy compatibility: MoveGen adapter for Board-based API
+    std::vector<Move> MoveGen::GetPseudoLegalMoves(const Board &board, int index)
+    {
+        // Convert Board to Position
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        pos.castlingRights = board.CastlingRights();
+        pos.enPassantSquare = board.EnPassantIndex();
+        pos.halfMoveClock = board.HalfMoves();
+        pos.fullMoveNumber = board.FullMoves();
+
+        return generator.GetPseudoLegalMoves(pos, index);
+    }
+
+    std::vector<Move> MoveGen::GetPawnMoves(const Board &board, int index)
+    {
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        pos.castlingRights = board.CastlingRights();
+        pos.enPassantSquare = board.EnPassantIndex();
+        return generator.GetPawnMoves(pos, index);
     }
 
     std::vector<Move> MoveGen::GetKnightMoves(const Board &board, int index)
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        bool isWhitePiece = is_upper(piece);
-        Vec2 coords = indexToVec2(index);
-
-        Vec2 offsets[8] = {
-            {1, 2},
-            {2, 1},
-            {-1, 2},
-            {-2, 1},
-            {1, -2},
-            {2, -1},
-            {-1, -2},
-            {-2, -1},
-        };
-
-        for (Vec2 offset : offsets)
-        {
-            Vec2 target = {coords.x + offset.x, coords.y + offset.y};
-            if (target.x < 0 || target.x > 7 || target.y < 0 || target.y > 7)
-                continue;
-
-            int targetIndex = vec2ToIndex(target);
-            char targetPiece = board.PieceAt(targetIndex);
-
-            if (targetPiece == 0 ||
-                (isWhitePiece && is_lower(targetPiece)) ||
-                (!isWhitePiece && is_upper(targetPiece)))
-            {
-                possibleMoves.push_back({piece, index, targetIndex});
-            }
-        }
-
-        return possibleMoves;
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        return generator.GetKnightMoves(pos, index);
     }
 
     std::vector<Move> MoveGen::GetBishopMoves(const Board &board, int index)
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        bool isWhitePiece = is_upper(piece);
-        Vec2 coords = indexToVec2(index);
-
-        Vec2 directions[4] = {
-            {1, 1},
-            {-1, 1},
-            {1, -1},
-            {-1, -1},
-        };
-
-        for (Vec2 dir : directions)
-        {
-            Vec2 current = coords;
-            while (true)
-            {
-                current.x += dir.x;
-                current.y += dir.y;
-
-                if (current.x < 0 || current.x > 7 || current.y < 0 || current.y > 7)
-                    break;
-
-                int targetIndex = vec2ToIndex(current);
-                char targetPiece = board.PieceAt(targetIndex);
-
-                if (targetPiece == 0)
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                    continue;
-                }
-
-                if ((isWhitePiece && is_lower(targetPiece)) ||
-                    (!isWhitePiece && is_upper(targetPiece)))
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                }
-
-                break;
-            }
-        }
-
-        return possibleMoves;
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        return generator.GetBishopMoves(pos, index);
     }
 
     std::vector<Move> MoveGen::GetRookMoves(const Board &board, int index)
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        bool isWhitePiece = is_upper(piece);
-        Vec2 coords = indexToVec2(index);
-
-        Vec2 directions[4] = {
-            {1, 0},
-            {-1, 0},
-            {0, 1},
-            {0, -1},
-        };
-
-        for (Vec2 dir : directions)
-        {
-            Vec2 current = coords;
-            while (true)
-            {
-                current.x += dir.x;
-                current.y += dir.y;
-
-                if (current.x < 0 || current.x > 7 || current.y < 0 || current.y > 7)
-                    break;
-
-                int targetIndex = vec2ToIndex(current);
-                char targetPiece = board.PieceAt(targetIndex);
-
-                if (targetPiece == 0)
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                    continue;
-                }
-
-                if ((isWhitePiece && is_lower(targetPiece)) ||
-                    (!isWhitePiece && is_upper(targetPiece)))
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                }
-
-                break;
-            }
-        }
-
-        return possibleMoves;
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        return generator.GetRookMoves(pos, index);
     }
 
     std::vector<Move> MoveGen::GetQueenMoves(const Board &board, int index)
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        bool isWhitePiece = is_upper(piece);
-        Vec2 coords = indexToVec2(index);
-
-        Vec2 directions[8] = {
-            {1, 0},
-            {-1, 0},
-            {0, 1},
-            {0, -1},
-            {1, 1},
-            {-1, 1},
-            {1, -1},
-            {-1, -1},
-        };
-
-        for (Vec2 dir : directions)
-        {
-            Vec2 current = coords;
-            while (true)
-            {
-                current.x += dir.x;
-                current.y += dir.y;
-
-                if (current.x < 0 || current.x > 7 || current.y < 0 || current.y > 7)
-                    break;
-
-                int targetIndex = vec2ToIndex(current);
-                char targetPiece = board.PieceAt(targetIndex);
-
-                if (targetPiece == 0)
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                    continue;
-                }
-
-                if ((isWhitePiece && is_lower(targetPiece)) ||
-                    (!isWhitePiece && is_upper(targetPiece)))
-                {
-                    possibleMoves.push_back({piece, index, targetIndex});
-                }
-
-                break;
-            }
-        }
-
-        return possibleMoves;
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        return generator.GetQueenMoves(pos, index);
     }
 
     std::vector<Move> MoveGen::GetKingMoves(const Board &board, int index)
     {
-        std::vector<Move> possibleMoves;
-
-        char piece = board.PieceAt(index);
-        if (piece == 0)
-            return possibleMoves;
-
-        bool isWhitePiece = is_upper(piece);
-        Vec2 coords = indexToVec2(index);
-
-        Vec2 offsets[8] = {
-            {1, 0},
-            {-1, 0},
-            {0, 1},
-            {0, -1},
-            {1, 1},
-            {-1, 1},
-            {1, -1},
-            {-1, -1},
-        };
-
-        for (Vec2 offset : offsets)
-        {
-            Vec2 target = {coords.x + offset.x, coords.y + offset.y};
-            if (target.x < 0 || target.x > 7 || target.y < 0 || target.y > 7)
-                continue;
-
-            int targetIndex = vec2ToIndex(target);
-            char targetPiece = board.PieceAt(targetIndex);
-
-            if (targetPiece == 0 ||
-                (isWhitePiece && is_lower(targetPiece)) ||
-                (!isWhitePiece && is_upper(targetPiece)))
-            {
-                possibleMoves.push_back({piece, index, targetIndex});
-            }
-        }
-
-        if (isWhitePiece && coords.x == 4 && coords.y == 0)
-        {
-            const auto &rights = board.CastlingRights();
-            if (rights[0])
-            {
-                int f1 = vec2ToIndex({5, 0});
-                int g1 = vec2ToIndex({6, 0});
-                int h1 = vec2ToIndex({7, 0});
-                if (board.PieceAt(f1) == 0 && board.PieceAt(g1) == 0)
-                {
-                    if (board.PieceAt(h1) == 'R')
-                    {
-                        possibleMoves.push_back({piece, index, g1, 0, MoveType::Castle});
-                    }
-                }
-            }
-
-            if (rights[1])
-            {
-                int b1 = vec2ToIndex({1, 0});
-                int c1 = vec2ToIndex({2, 0});
-                int d1 = vec2ToIndex({3, 0});
-                int a1 = vec2ToIndex({0, 0});
-                if (board.PieceAt(b1) == 0 && board.PieceAt(c1) == 0 && board.PieceAt(d1) == 0)
-                {
-                    if (board.PieceAt(a1) == 'R')
-                    {
-                        possibleMoves.push_back({piece, index, c1, 0, MoveType::Castle});
-                    }
-                }
-            }
-        }
-
-        if (!isWhitePiece && coords.x == 4 && coords.y == 7)
-        {
-            const auto &rights = board.CastlingRights();
-            if (rights[2])
-            {
-                int f8 = vec2ToIndex({5, 7});
-                int g8 = vec2ToIndex({6, 7});
-                int h8 = vec2ToIndex({7, 7});
-                if (board.PieceAt(f8) == 0 && board.PieceAt(g8) == 0)
-                {
-                    if (board.PieceAt(h8) == 'r')
-                    {
-                        possibleMoves.push_back({piece, index, g8, 0, MoveType::Castle});
-                    }
-                }
-            }
-
-            if (rights[3])
-            {
-                int b8 = vec2ToIndex({1, 7});
-                int c8 = vec2ToIndex({2, 7});
-                int d8 = vec2ToIndex({3, 7});
-                int a8 = vec2ToIndex({0, 7});
-                if (board.PieceAt(b8) == 0 && board.PieceAt(c8) == 0 && board.PieceAt(d8) == 0)
-                {
-                    if (board.PieceAt(a8) == 'r')
-                    {
-                        possibleMoves.push_back({piece, index, c8, 0, MoveType::Castle});
-                    }
-                }
-            }
-        }
-
-        return possibleMoves;
+        Position pos;
+        for (int i = 0; i < 64; ++i)
+            pos.pieces[i] = board.PieceAt(i);
+        pos.whiteToMove = board.IsWhiteTurn();
+        pos.castlingRights = board.CastlingRights();
+        return generator.GetKingMoves(pos, index);
     }
 
 }

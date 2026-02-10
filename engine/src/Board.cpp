@@ -377,7 +377,7 @@ namespace Engine
         bool hasPromotionChoice = false;
         for (const Engine::Move &move : possibleMoves)
         {
-            if (move.end != targetIndex)
+            if (move.to != targetIndex)
             {
                 continue;
             }
@@ -435,28 +435,28 @@ namespace Engine
         MoveResult result = {};
         Move applied = move;
 
-        if (!IsValidIndex(move.start) || !IsValidIndex(move.end))
+        if (!IsValidIndex(move.from) || !IsValidIndex(move.to))
         {
             result.error = MoveError::IllegalMove;
             return result;
         }
 
-        char source = this->state_[move.start];
+        char source = this->state_[move.from];
         if (source == 0)
         {
             result.error = MoveError::IllegalMove;
             return result;
         }
 
-        char targetPiece = this->state_[move.end];
+        char targetPiece = this->state_[move.to];
         if (targetPiece != 0 && is_upper(source) == is_upper(targetPiece))
         {
             result.error = MoveError::IllegalMove;
             return result;
         }
 
-        Vec2 sourceCoords = indexToVec2(move.start);
-        Vec2 targetCoords = indexToVec2(move.end);
+        Vec2 sourceCoords = indexToVec2(move.from);
+        Vec2 targetCoords = indexToVec2(move.to);
         bool isPawn = to_lower(source) == 'p';
         bool isWhitePiece = is_upper(source);
 
@@ -492,7 +492,7 @@ namespace Engine
 
         if (applied.type == MoveType::EnPassant)
         {
-            if (this->enPassantIndex_ != move.end)
+            if (this->enPassantIndex_ != move.to)
             {
                 result.error = MoveError::IllegalMove;
                 return result;
@@ -511,8 +511,8 @@ namespace Engine
             targetPiece = isWhitePiece ? 'p' : 'P';
         }
 
-        this->state_[move.end] = pieceToPlace;
-        this->state_[move.start] = 0;
+        this->state_[move.to] = pieceToPlace;
+        this->state_[move.from] = 0;
 
         this->enPassantIndex_ = -1;
         if (isPawn && std::abs(targetCoords.y - sourceCoords.y) == 2)

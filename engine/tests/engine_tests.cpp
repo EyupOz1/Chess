@@ -45,7 +45,7 @@ int main()
         bool found = false;
         for (const Engine::Move &move : moves)
         {
-            if (move.end == enPassantTarget)
+            if (move.to == enPassantTarget)
                 found = true;
         }
         expect(found, "en passant move exists");
@@ -76,7 +76,7 @@ int main()
         bool found = false;
         for (const Engine::Move &move : moves)
         {
-            if (move.end == castleTarget)
+            if (move.to == castleTarget)
                 found = true;
         }
         expect(found, "castling move exists");
@@ -106,7 +106,7 @@ int main()
         bool found = false;
         for (const Engine::Move &move : moves)
         {
-            if (move.end == enPassantTarget)
+            if (move.to == enPassantTarget)
                 found = true;
         }
         expect(!found, "en passant only allowed immediately");

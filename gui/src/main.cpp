@@ -263,26 +263,233 @@ static void UpdateDrawFrame(void *user_data)
     }
   }
 
-  DrawText("LMB drag pieces; MMB pan; Wheel zoom; F flip; F11 fullscreen", 10, 10, 20, DARKGRAY);
-  DrawText("F1 settings", 10, 34, 18, DARKGRAY);
-  if (!state->game.Board().History().empty())
+  // Undo/Redo controls
+  if (IsKeyPressed(KEY_U) && state->game.CanUndo())
   {
-    const Engine::Move &lastMove = state->game.Board().History().back();
-    DrawText(TextFormat("Last Move: %c %i %i", lastMove.piece, lastMove.start, lastMove.end), 10, 30, 20, RED);
+    state->game.Undo();
+    PushLog(*state, "Undo");
+  }
+  if (IsKeyPressed(KEY_R) && state->game.CanRedo())
+  {
+    state->game.Redo();
+    PushLog(*state, "Redo");
   }
 
-  if (status == Engine::PositionStatus::Check)
+  // Toggle side menu with M key
+  if (IsKeyPressed(KEY_M))
   {
-    DrawText("Check!", 10, 50, 22, MAROON);
+    state->showSettings = !state->showSettings;
   }
-  else if (status == Engine::PositionStatus::Checkmate)
+
+  // === UNIFIED SIDE MENU PANEL (Right side) ===
+  const int sideMenuWidth = 360;
+  const int sideMenuX = GetScreenWidth() - sideMenuWidth;
+  const int sideMenuY = 0;
+  const int sideMenuHeight = GetScreenHeight();
+  
+  // Panel background
+  DrawRectangle(sideMenuX, sideMenuY, sideMenuWidth, sideMenuHeight, {30, 30, 30, 230});
+  DrawRectangleLines(sideMenuX, sideMenuY, sideMenuWidth, sideMenuHeight, DARKGRAY);
+  
+  int menuStartX = sideMenuX + 10;
+  int menuStartY = sideMenuY + 10;
+  
+  // === TAB SELECTION ===
+  Rectangle gameTab = {(float)sideMenuX + 5, (float)sideMenuY + 5, (sideMenuWidth - 10) / 2.0f, 28};
+  Rectangle settingsTab = {(float)sideMenuX + 5 + (sideMenuWidth - 10) / 2.0f, (float)sideMenuY + 5, (sideMenuWidth - 10) / 2.0f, 28};
+  
+  Vector2 mouse = GetMousePosition();
+  bool mouseOnGameTab = CheckCollisionPointRec(mouse, gameTab);
+  bool mouseOnSettingsTab = CheckCollisionPointRec(mouse, settingsTab);
+  
+  // Game Tab button
+  Color gameTabColor = state->showSettings ? Color{60, 60, 60, 255} : Color{80, 120, 160, 255};
+  DrawRectangleRec(gameTab, gameTabColor);
+  DrawRectangleLines((int)gameTab.x, (int)gameTab.y, (int)gameTab.width, (int)gameTab.height, LIGHTGRAY);
+  DrawText("Game", menuStartX + 30, sideMenuY + 8, 14, RAYWHITE);
+  
+  if (mouseOnGameTab && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
   {
-    const char *winner = state->game.Board().IsWhiteTurn() ? "Black" : "White";
-    DrawText(TextFormat("Checkmate! %s wins", winner), 10, 50, 22, MAROON);
+    state->showSettings = false;
   }
-  else if (status == Engine::PositionStatus::Stalemate)
+  
+  // Settings Tab button
+  Color settingsTabColor = state->showSettings ? Color{80, 120, 160, 255} : Color{60, 60, 60, 255};
+  DrawRectangleRec(settingsTab, settingsTabColor);
+  DrawRectangleLines((int)settingsTab.x, (int)settingsTab.y, (int)settingsTab.width, (int)settingsTab.height, LIGHTGRAY);
+  DrawText("Settings", menuStartX + 150, sideMenuY + 8, 14, RAYWHITE);
+  
+  if (mouseOnSettingsTab && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
   {
-    DrawText("Stalemate", 10, 50, 22, MAROON);
+    state->showSettings = true;
+  }
+  
+  // Content area starts below tabs
+  int contentStartY = sideMenuY + 45;
+  int infoX = menuStartX;
+  int infoY = contentStartY;
+  int lineHeight = 16;
+  int line = 0;
+  
+  if (!state->showSettings)
+  {
+    // === GAME INFO TAB ===
+    DrawText("STATUS", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    
+    std::string statusStr = state->game.GetStatusString();
+    Color statusColor = RAYWHITE;
+    if (state->game.IsInCheck())
+      statusColor = ORANGE;
+    if (state->game.IsCheckmate())
+      statusColor = RED;
+    if (state->game.IsStalemate())
+      statusColor = YELLOW;
+    if (state->game.IsDraw())
+      statusColor = YELLOW;
+    
+    DrawText(TextFormat("%s", statusStr.c_str()), infoX, infoY + (line++) * lineHeight, 11, statusColor);
+    
+    const char *currentPlayer = state->game.IsWhiteToMove() ? "WHITE to move" : "BLACK to move";
+    DrawText(currentPlayer, infoX, infoY + (line++) * lineHeight, 11, RAYWHITE);
+    
+    line++;  // Spacing
+    
+    // Position info
+    DrawText("POSITION", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    
+    DrawText(TextFormat("Move: %d", state->game.GetFullMoveNumber()), 
+             infoX, infoY + (line++) * lineHeight, 11, LIGHTGRAY);
+    
+    int halfClock = state->game.GetHalfMoveClock();
+    Color clockColor = (halfClock > 40) ? RED : (halfClock > 20) ? ORANGE : LIGHTGRAY;
+    DrawText(TextFormat("50-Move: %d/50", halfClock), infoX, infoY + (line++) * lineHeight, 11, clockColor);
+    
+    // Castling rights
+    std::string castlingStr = "";
+    if (state->game.CanWhiteCastleKingside()) castlingStr += "K";
+    if (state->game.CanWhiteCastleQueenside()) castlingStr += "Q";
+    if (state->game.CanBlackCastleKingside()) castlingStr += "k";
+    if (state->game.CanBlackCastleQueenside()) castlingStr += "q";
+    if (castlingStr.empty()) castlingStr = "-";
+    DrawText(TextFormat("Castle: %s", castlingStr.c_str()), infoX, infoY + (line++) * lineHeight, 11, LIGHTGRAY);
+    
+    // En passant
+    if (state->game.GetEnPassantSquare() >= 0)
+    {
+      int file = state->game.GetEnPassantSquare() % 8;
+      int rank = state->game.GetEnPassantSquare() / 8;
+      DrawText(TextFormat("EP: %c%d", 'a' + file, rank + 1), infoX, infoY + (line++) * lineHeight, 11, LIME);
+    }
+    
+    line++;  // Spacing
+    
+    // Draw conditions
+    if (state->game.IsDraw())
+    {
+      DrawText("DRAW", infoX, infoY + (line++) * lineHeight, 12, YELLOW);
+      std::string drawReason = state->game.GetDrawReason();
+      DrawText(TextFormat("%s", drawReason.c_str()), infoX, infoY + (line++) * lineHeight, 10, YELLOW);
+      line++;
+    }
+    
+    // Move history
+    DrawText("MOVES", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    
+    const auto& moveHistory = state->game.GetMoveHistory();
+    int currentMoveIdx = state->game.GetCurrentMoveIndex();
+    int maxMoves = 6;
+    int startIdx = std::max(0, (int)moveHistory.size() - maxMoves);
+    
+    for (int i = startIdx; i < (int)moveHistory.size(); ++i)
+    {
+      if (line > 28) break;
+      
+      if (i % 2 == 0)
+      {
+        int moveNum = i / 2 + 1;
+        std::string displayStr = TextFormat("%d.", moveNum);
+        
+        if (i < (int)moveHistory.size())
+        {
+          std::string whiteMove = state->game.GetMoveNotation(i, true);
+          displayStr += " " + whiteMove;
+          
+          if (i + 1 < (int)moveHistory.size())
+          {
+            std::string blackMove = state->game.GetMoveNotation(i + 1, true);
+            displayStr += " " + blackMove;
+          }
+          
+          DrawText(displayStr.c_str(), infoX, infoY + (line++) * lineHeight, 10, 
+                   (i == currentMoveIdx || (i + 1 == currentMoveIdx)) ? LIME : LIGHTGRAY);
+        }
+      }
+    }
+    
+    line++;  // Spacing
+    
+    // Undo/Redo controls
+    DrawText("CONTROLS", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    Color undoColor = state->game.CanUndo() ? LIME : DARKGRAY;
+    Color redoColor = state->game.CanRedo() ? LIME : DARKGRAY;
+    DrawText(TextFormat("U: Undo"), infoX, infoY + (line++) * lineHeight, 10, undoColor);
+    DrawText(TextFormat("R: Redo"), infoX, infoY + (line++) * lineHeight, 10, redoColor);
+    
+    line++;  // Spacing
+    
+    // Help text
+    DrawText("SHORTCUTS", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    DrawText("M - Toggle menu", infoX, infoY + (line++) * lineHeight, 9, LIGHTGRAY);
+    DrawText("F - Flip board", infoX, infoY + (line++) * lineHeight, 9, LIGHTGRAY);
+    DrawText("F11 - Fullscreen", infoX, infoY + (line++) * lineHeight, 9, LIGHTGRAY);
+  }
+  else
+  {
+    // === SETTINGS TAB ===
+    DrawText("THEMES", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    DrawText("(Use F1 to open", infoX, infoY + (line++) * lineHeight, 10, LIGHTGRAY);
+    DrawText("full settings)", infoX, infoY + (line++) * lineHeight, 10, LIGHTGRAY);
+    
+    line++;
+    DrawText("BOARD", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    
+    // Quick flip button
+    Rectangle flipButtonRect = {(float)infoX, (float)(infoY + (line) * lineHeight), (float)(sideMenuWidth - 20), 24};
+    if (CheckCollisionPointRec(mouse, flipButtonRect) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+      state->boardView.flipped = !state->boardView.flipped;
+      PushLog(*state, state->boardView.flipped ? "Board flipped" : "Board unflipped");
+    }
+    
+    Color flipColor = CheckCollisionPointRec(mouse, flipButtonRect) ? Color{100, 140, 180, 255} : Color{60, 90, 120, 255};
+    DrawRectangleRec(flipButtonRect, flipColor);
+    DrawRectangleLines((int)flipButtonRect.x, (int)flipButtonRect.y, (int)flipButtonRect.width, (int)flipButtonRect.height, LIGHTGRAY);
+    DrawText(state->boardView.flipped ? "Flip Board (ON)" : "Flip Board (OFF)", 
+             infoX + 8, (int)flipButtonRect.y + 4, 12, RAYWHITE);
+    line += 2;
+    
+    line++;
+    DrawText("POSITION", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    
+    // Quick reset button
+    Rectangle resetButtonRect = {(float)infoX, (float)(infoY + (line) * lineHeight), (float)(sideMenuWidth - 20), 24};
+    if (CheckCollisionPointRec(mouse, resetButtonRect) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+      state->game.LoadStartPosition();
+      PushLog(*state, "Start position loaded");
+    }
+    
+    Color resetColor = CheckCollisionPointRec(mouse, resetButtonRect) ? Color{100, 140, 180, 255} : Color{60, 90, 120, 255};
+    DrawRectangleRec(resetButtonRect, resetColor);
+    DrawRectangleLines((int)resetButtonRect.x, (int)resetButtonRect.y, (int)resetButtonRect.width, (int)resetButtonRect.height, LIGHTGRAY);
+    DrawText("Reset Position", infoX + 8, (int)resetButtonRect.y + 4, 12, RAYWHITE);
+    line += 2;
+    
+    line++;
+    DrawText("INFO", infoX, infoY + (line++) * lineHeight, 12, SKYBLUE);
+    DrawText("Press F1 for full", infoX, infoY + (line++) * lineHeight, 10, LIGHTGRAY);
+    DrawText("settings menu", infoX, infoY + (line++) * lineHeight, 10, LIGHTGRAY);
+    DrawText("(FEN, themes, etc)", infoX, infoY + (line++) * lineHeight, 10, LIGHTGRAY);
   }
 
   if (state->logTimer > 0.0f && !state->logMessage.empty())
