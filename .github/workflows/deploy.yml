@@ -19,8 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
+
+      - name: Init submodules
+        run: git submodule update --init external/raylib
 
       - uses: mymindstorm/setup-emsdk@v14
 
