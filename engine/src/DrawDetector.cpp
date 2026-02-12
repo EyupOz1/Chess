@@ -39,20 +39,11 @@ namespace Engine
         if (whitePieces == 0 && blackPieces == 0)
             return true;
 
-        // King + Knight vs King
+        // King + minor (Knight or Bishop) vs King
         if (whitePieces == 1 && blackPieces == 0 && whiteMinors == 1)
             return true;
         if (whitePieces == 0 && blackPieces == 1 && blackMinors == 1)
             return true;
-
-        // King + Bishop vs King
-        if (whitePieces == 1 && blackPieces == 0 && whiteMinors == 1)
-            return true;
-        if (whitePieces == 0 && blackPieces == 1 && blackMinors == 1)
-            return true;
-
-        // King + Bishop vs King + Bishop (same color bishops could still be drawable)
-        // For simplicity, we don't claim draw here (could add more sophisticated logic)
 
         return false;
     }

@@ -65,7 +65,8 @@ namespace Engine
             }
 
             // Valid piece characters
-            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+            if (c == 'p' || c == 'r' || c == 'n' || c == 'b' || c == 'q' || c == 'k' ||
+                c == 'P' || c == 'R' || c == 'N' || c == 'B' || c == 'Q' || c == 'K')
             {
                 if (rank < 0 || file >= kBoardSize)
                     return false;

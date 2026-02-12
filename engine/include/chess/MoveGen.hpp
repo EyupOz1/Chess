@@ -42,7 +42,6 @@ namespace Engine
         // Lookup tables (pre-computed once, reused)
         std::array<uint64_t, 64> knightAttacks_;
         std::array<uint64_t, 64> kingAttacks_;
-        std::array<std::array<uint64_t, 8>, 64> slideAttacks_;  // [square][direction]
 
         // Helpers
         uint64_t GetPawnAttackSquares(int square, bool isWhite) const;

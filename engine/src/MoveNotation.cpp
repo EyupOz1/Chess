@@ -28,13 +28,12 @@ namespace Engine
         // Handle pawn moves
         if (move.pieceMoved != 0 && to_lower(move.pieceMoved) == 'p')
         {
-            // Pawn captures show source file
             if (move.IsCapture())
             {
                 int fromFile = fileFromIndex(move.from, 8);
                 san += (char)('a' + fromFile);
+                san += 'x';
             }
-            san += 'x';
             san += SquareToAlgebraic(move.to);
         }
         else

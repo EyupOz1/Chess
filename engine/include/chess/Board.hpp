@@ -46,8 +46,6 @@ namespace Engine
         void PrintBoard();
         void PrintInfo();
 
-        void PossibleMoves();
-
     private:
         bool IsValidIndex(int index) const;
 

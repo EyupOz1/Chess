@@ -39,15 +39,11 @@ namespace Engine
 
     const Position& Game::GetCurrentPosition() const
     {
-        if (currentMoveIndex_ < 0 || currentMoveIndex_ >= static_cast<int>(positions_.size()))
-            return positions_.back();
         return positions_[currentMoveIndex_ + 1];
     }
 
     Position& Game::GetCurrentPositionMutable()
     {
-        if (currentMoveIndex_ < 0 || currentMoveIndex_ >= static_cast<int>(positions_.size()))
-            return positions_.back();
         return positions_[currentMoveIndex_ + 1];
     }
 
@@ -167,15 +163,15 @@ namespace Engine
         // Check for captures affecting castling rights
         if (move.IsCapture())
         {
-            bool isWhiteCapture = is_upper(move.pieceCaptured);
             int toFile = fileFromIndex(move.to, Position::kBoardSize);
-            if (isWhiteCapture && toFile == 0)
+            int toRank = rankFromIndex(move.to, Position::kBoardSize);
+            if (toRank == 0 && toFile == 0)
                 newRights[1] = false;
-            if (isWhiteCapture && toFile == 7)
+            if (toRank == 0 && toFile == 7)
                 newRights[0] = false;
-            if (!isWhiteCapture && toFile == 0)
+            if (toRank == 7 && toFile == 0)
                 newRights[3] = false;
-            if (!isWhiteCapture && toFile == 7)
+            if (toRank == 7 && toFile == 7)
                 newRights[2] = false;
         }
 
@@ -202,10 +198,12 @@ namespace Engine
         int newHalfMoves = newPos.GetHalfMoveClock() + 1;
         if (move.IsCapture() || movedPieceLower == 'p')
             newHalfMoves = 0;
+        newPos.halfMoveClock = newHalfMoves;
 
         int newFullMoves = newPos.GetFullMoveNumber();
         if (!newPos.IsWhiteToMove())
             newFullMoves++;
+        newPos.fullMoveNumber = newFullMoves;
 
         newPos.SetWhiteToMove(!newPos.IsWhiteToMove());
 

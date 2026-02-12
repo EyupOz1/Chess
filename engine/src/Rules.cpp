@@ -244,7 +244,7 @@ namespace Engine
             return legalMoves;
         }
 
-        MoveGen moveGen;
+        static MoveGen moveGen;
         std::vector<Move> moves = moveGen.GetPseudoLegalMoves(board, index);
 
         for (const Move &move : moves)
@@ -260,6 +260,7 @@ namespace Engine
 
     bool Rules::HasAnyLegalMove(const Board &board, bool forWhite)
     {
+        static MoveGen moveGen;
         for (int i = 0; i < Board::kSquareCount; ++i)
         {
             char piece = board.PieceAt(i);
@@ -268,7 +269,6 @@ namespace Engine
                 continue;
             }
 
-            MoveGen moveGen;
             std::vector<Move> moves = moveGen.GetPseudoLegalMoves(board, i);
             for (const Move &move : moves)
             {
