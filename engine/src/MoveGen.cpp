@@ -70,13 +70,46 @@ namespace Engine
 
     std::vector<Move> MoveGenerator::GetLegalMoves(const Position& pos)
     {
-        std::vector<Move> moves = GetPseudoLegalMoves(pos);
+        std::vector<Move> pseudoMoves = GetPseudoLegalMoves(pos);
         std::vector<Move> legalMoves;
+        bool isWhite = pos.IsWhiteToMove();
+        char kingChar = isWhite ? 'K' : 'k';
 
-        for (const auto& move : moves)
+        for (const auto& move : pseudoMoves)
         {
-            // TODO: Check if move leaves king in check
-            legalMoves.push_back(move);
+            // Apply move to a temporary copy and check king safety
+            Position copy = pos;
+            copy.SetPiece(move.from, 0);
+            copy.SetPiece(move.to, move.promotion ? move.promotion : move.pieceMoved);
+
+            if (move.type == MoveType::EnPassant)
+            {
+                // Captured pawn is on the same rank as the moving pawn, same file as destination
+                int capturedPawn = indexFromFileRank(
+                    fileFromIndex(move.to, 8), rankFromIndex(move.from, 8), 8);
+                copy.SetPiece(capturedPawn, 0);
+            }
+            else if (move.type == MoveType::Castle)
+            {
+                int r = rankFromIndex(move.from, 8);
+                if (fileFromIndex(move.to, 8) == 6) // Kingside
+                {
+                    copy.SetPiece(indexFromFileRank(7, r, 8), 0);
+                    copy.SetPiece(indexFromFileRank(5, r, 8), isWhite ? 'R' : 'r');
+                }
+                else // Queenside
+                {
+                    copy.SetPiece(indexFromFileRank(0, r, 8), 0);
+                    copy.SetPiece(indexFromFileRank(3, r, 8), isWhite ? 'R' : 'r');
+                }
+            }
+
+            int kingSquare = -1;
+            for (int sq = 0; sq < 64; ++sq)
+                if (copy.PieceAt(sq) == kingChar) { kingSquare = sq; break; }
+
+            if (kingSquare >= 0 && !IsSquareAttacked(copy, kingSquare, !isWhite))
+                legalMoves.push_back(move);
         }
 
         return legalMoves;
@@ -84,16 +117,12 @@ namespace Engine
 
     std::vector<Move> MoveGenerator::GetLegalMoves(const Position& pos, int fromSquare)
     {
-        std::vector<Move> moves = GetPseudoLegalMoves(pos, fromSquare);
-        std::vector<Move> legalMoves;
-
-        for (const auto& move : moves)
-        {
-            // TODO: Check if move leaves king in check
-            legalMoves.push_back(move);
-        }
-
-        return legalMoves;
+        std::vector<Move> all = GetLegalMoves(pos);
+        std::vector<Move> filtered;
+        for (const auto& move : all)
+            if (move.from == fromSquare)
+                filtered.push_back(move);
+        return filtered;
     }
 
     std::vector<Move> MoveGenerator::GetPseudoLegalMoves(const Position& pos)
@@ -286,26 +315,29 @@ namespace Engine
             return moves;
 
         bool isWhite = is_upper(bishop);
+        int file = fileFromIndex(fromSquare, 8);
+        int rank = rankFromIndex(fromSquare, 8);
 
-        // Diagonal directions
         int directions[4][2] = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
-
         for (const auto& dir : directions)
         {
-            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
-            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            int f = file + dir[0], r = rank + dir[1];
+            while (f >= 0 && f < 8 && r >= 0 && r < 8)
             {
-                if ((rayAttacks & (1ULL << toSquare)) == 0)
-                    continue;
-
+                int toSquare = indexFromFileRank(f, r, 8);
                 char target = pos.PieceAt(toSquare);
-                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                if (target == 0)
                 {
                     AddMove(moves, pos, fromSquare, toSquare);
                 }
-
-                if (target != 0)
-                    break;  // Stop at first piece
+                else
+                {
+                    if ((isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                        AddMove(moves, pos, fromSquare, toSquare);
+                    break;
+                }
+                f += dir[0];
+                r += dir[1];
             }
         }
 
@@ -320,26 +352,29 @@ namespace Engine
             return moves;
 
         bool isWhite = is_upper(rook);
+        int file = fileFromIndex(fromSquare, 8);
+        int rank = rankFromIndex(fromSquare, 8);
 
-        // Orthogonal directions
         int directions[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-
         for (const auto& dir : directions)
         {
-            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
-            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            int f = file + dir[0], r = rank + dir[1];
+            while (f >= 0 && f < 8 && r >= 0 && r < 8)
             {
-                if ((rayAttacks & (1ULL << toSquare)) == 0)
-                    continue;
-
+                int toSquare = indexFromFileRank(f, r, 8);
                 char target = pos.PieceAt(toSquare);
-                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                if (target == 0)
                 {
                     AddMove(moves, pos, fromSquare, toSquare);
                 }
-
-                if (target != 0)
-                    break;  // Stop at first piece
+                else
+                {
+                    if ((isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                        AddMove(moves, pos, fromSquare, toSquare);
+                    break;
+                }
+                f += dir[0];
+                r += dir[1];
             }
         }
 
@@ -354,29 +389,32 @@ namespace Engine
             return moves;
 
         bool isWhite = is_upper(queen);
+        int file = fileFromIndex(fromSquare, 8);
+        int rank = rankFromIndex(fromSquare, 8);
 
-        // All 8 directions
         int directions[8][2] = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1},
             {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
         };
-
         for (const auto& dir : directions)
         {
-            uint64_t rayAttacks = GetRayAttacks(fromSquare, pos, dir[0], dir[1]);
-            for (int toSquare = 0; toSquare < 64; ++toSquare)
+            int f = file + dir[0], r = rank + dir[1];
+            while (f >= 0 && f < 8 && r >= 0 && r < 8)
             {
-                if ((rayAttacks & (1ULL << toSquare)) == 0)
-                    continue;
-
+                int toSquare = indexFromFileRank(f, r, 8);
                 char target = pos.PieceAt(toSquare);
-                if (target == 0 || (isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                if (target == 0)
                 {
                     AddMove(moves, pos, fromSquare, toSquare);
                 }
-
-                if (target != 0)
-                    break;  // Stop at first piece
+                else
+                {
+                    if ((isWhite && is_lower(target)) || (!isWhite && is_upper(target)))
+                        AddMove(moves, pos, fromSquare, toSquare);
+                    break;
+                }
+                f += dir[0];
+                r += dir[1];
             }
         }
 
@@ -454,7 +492,73 @@ namespace Engine
 
     bool MoveGenerator::IsSquareAttacked(const Position& pos, int square, bool byWhite) const
     {
-        // TODO: Implement efficiently using lookup tables
+        int file = fileFromIndex(square, 8);
+        int rank = rankFromIndex(square, 8);
+
+        // Pawns
+        char pawnChar = byWhite ? 'P' : 'p';
+        int pawnDir = byWhite ? -1 : 1;
+        for (int df : {-1, 1})
+        {
+            int f = file + df, r = rank + pawnDir;
+            if (f >= 0 && f < 8 && r >= 0 && r < 8)
+                if (pos.PieceAt(indexFromFileRank(f, r, 8)) == pawnChar)
+                    return true;
+        }
+
+        // Knights (use pre-computed table)
+        char knightChar = byWhite ? 'N' : 'n';
+        uint64_t knightBits = knightAttacks_[square];
+        for (int sq = 0; sq < 64; ++sq)
+            if ((knightBits >> sq) & 1)
+                if (pos.PieceAt(sq) == knightChar)
+                    return true;
+
+        // King (use pre-computed table)
+        char kingChar = byWhite ? 'K' : 'k';
+        uint64_t kingBits = kingAttacks_[square];
+        for (int sq = 0; sq < 64; ++sq)
+            if ((kingBits >> sq) & 1)
+                if (pos.PieceAt(sq) == kingChar)
+                    return true;
+
+        // Orthogonal rays (rook or queen)
+        char rookChar  = byWhite ? 'R' : 'r';
+        char queenChar = byWhite ? 'Q' : 'q';
+        int orthoDirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (const auto& dir : orthoDirs)
+        {
+            int f = file + dir[0], r = rank + dir[1];
+            while (f >= 0 && f < 8 && r >= 0 && r < 8)
+            {
+                char piece = pos.PieceAt(indexFromFileRank(f, r, 8));
+                if (piece != 0)
+                {
+                    if (piece == rookChar || piece == queenChar) return true;
+                    break;
+                }
+                f += dir[0]; r += dir[1];
+            }
+        }
+
+        // Diagonal rays (bishop or queen)
+        char bishopChar = byWhite ? 'B' : 'b';
+        int diagDirs[4][2] = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+        for (const auto& dir : diagDirs)
+        {
+            int f = file + dir[0], r = rank + dir[1];
+            while (f >= 0 && f < 8 && r >= 0 && r < 8)
+            {
+                char piece = pos.PieceAt(indexFromFileRank(f, r, 8));
+                if (piece != 0)
+                {
+                    if (piece == bishopChar || piece == queenChar) return true;
+                    break;
+                }
+                f += dir[0]; r += dir[1];
+            }
+        }
+
         return false;
     }
 

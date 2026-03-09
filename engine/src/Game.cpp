@@ -1,5 +1,7 @@
 #include "chess/Game.hpp"
 #include "chess/Rules.hpp"
+#include "chess/Board.hpp"
+#include "chess/DrawDetector.hpp"
 
 namespace Engine
 {
@@ -256,7 +258,8 @@ namespace Engine
 
     GameStatus Game::GetStatus() const
     {
-        // Would call Rules::GetStatus(GetCurrentPosition())
+        if (statusDirty_)
+            UpdateStatus();
         return lastComputedStatus_;
     }
 
@@ -296,9 +299,33 @@ namespace Engine
         statusDirty_ = true;
     }
 
-    void Game::UpdateStatus()
+    void Game::UpdateStatus() const
     {
-        // TODO: Implement using Rules and DrawDetector
+        const Position& pos = GetCurrentPosition();
+
+        DrawDetector detector;
+        if (detector.IsInsufficientMaterial(pos))
+            { lastComputedStatus_ = GameStatus::InsufficientMaterial; statusDirty_ = false; return; }
+        if (detector.IsFiftyMoveRule(pos))
+            { lastComputedStatus_ = GameStatus::FiftyMoveRule; statusDirty_ = false; return; }
+        if (detector.IsThreefoldRepetition(*this))
+            { lastComputedStatus_ = GameStatus::ThreefoldRepetition; statusDirty_ = false; return; }
+
+        // Convert to Board for the existing Rules implementation
+        Board board;
+        for (int i = 0; i < 64; ++i)
+            board.SetPiece(i, pos.PieceAt(i));
+        board.SetTurn(pos.IsWhiteToMove());
+        board.SetCastlingRights(pos.GetCastlingRights());
+        board.SetEnPassantIndex(pos.GetEnPassantSquare());
+
+        switch (Rules::GetStatus(board))
+        {
+            case PositionStatus::Checkmate: lastComputedStatus_ = GameStatus::Checkmate; break;
+            case PositionStatus::Stalemate: lastComputedStatus_ = GameStatus::Stalemate; break;
+            case PositionStatus::Check:     lastComputedStatus_ = GameStatus::Check;     break;
+            default:                        lastComputedStatus_ = GameStatus::Ongoing;   break;
+        }
         statusDirty_ = false;
     }
 

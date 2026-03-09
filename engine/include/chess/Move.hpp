@@ -49,11 +49,6 @@ namespace Engine
                    type == other.type && promotion == other.promotion;
         }
 
-        // Human-readable representations
-        std::string ToUCI() const;      // e2e4, e7e8q
-        std::string ToSAN() const;      // e4, Nf3, O-O, Qxb7+
-        std::string ToString() const;   // Descriptive format
-
         // Utilities
         bool IsCapture() const { return pieceCaptured != 0; }
         bool IsPromotion() const { return promotion != 0; }

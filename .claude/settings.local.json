@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"/c/Users/eyupo/Desktop/Mess/engine/src\"/*.cpp \"/c/Users/eyupo/Desktop/Mess/gui/src\"/**/*.cpp)"
+    ]
+  }
+}

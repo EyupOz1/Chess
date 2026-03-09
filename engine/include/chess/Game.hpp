@@ -71,10 +71,10 @@ namespace Engine
         std::string whitePlayerName_ = "White";
         std::string blackPlayerName_ = "Black";
 
-        GameStatus lastComputedStatus_ = GameStatus::Ongoing;
-        bool statusDirty_ = true;
+        mutable GameStatus lastComputedStatus_ = GameStatus::Ongoing;
+        mutable bool statusDirty_ = true;
 
-        void UpdateStatus();
+        void UpdateStatus() const;
     };
 
 }
