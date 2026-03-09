@@ -2,7 +2,7 @@
 
 A fully-featured chess application built from scratch in **C++23**, featuring a custom chess engine and a cross-platform GUI that runs on **desktop and in the browser via WebAssembly**.
 
-Play it live → **[GitHub Pages Demo](#)** *(add your link here)*
+Play it live → **[GitHub Pages Demo](https://eyupoz1.github.io/Chess/)**
 
 ---
 
@@ -164,6 +164,3 @@ A GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically builds 
 
 ---
 
-## License
-
-MIT
